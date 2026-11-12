@@ -22,10 +22,10 @@ package final class PanelWindow {
         let size = hosting.fittingSize
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
-        let item = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        let item = buttonWindow.frame  // as tall as the menu bar, so its bottom edge is the bar's
         let panel = KeyPanel(
             contentRect: NSRect(
-                x: item.maxX - size.width, y: item.minY - 6 - size.height, width: size.width, height: size.height),
+                x: item.maxX - size.width, y: item.minY - 4 - size.height, width: size.width, height: size.height),
             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .popUpMenu
         panel.isOpaque = false
