@@ -9,8 +9,6 @@ struct SnapshotLiveTests {
     }
 
     static let networkIsCut = ProcessInfo.processInfo.environment["SANDBAR_NETWORK"] == "none"
-    static let savedCopy = URL(filePath: #filePath).appending(path: "../../../../.build/sandbar-live-snapshot.json")
-        .standardized
     static let ownSignIns = [
         Account(tool: .codex, name: "Personal", plan: "", profile: nil),
         Account(tool: .claude, name: "Work", plan: "", profile: nil),
@@ -18,6 +16,7 @@ struct SnapshotLiveTests {
 
     let gh = Live.program("SANDBAR_LIVE_GH")
     let tools: [Tool: URL] = [.claude: Live.program("SANDBAR_LIVE_CLAUDE"), .codex: Live.program("SANDBAR_LIVE_CODEX")]
+    let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
 
     var github: GitHubClient {
         GitHubClient(token: { [gh] in try await GitHubSignIn.ghToken(gh: gh) })
@@ -34,7 +33,13 @@ struct SnapshotLiveTests {
         }
     }
 
+    func removeFolder() {
+        #expect(throws: Never.self) { try FileManager.default.removeItem(at: folder) }
+    }
+
     @Test(.enabled(if: !networkIsCut)) func theOwnSignInsReadEverythingAndAnEmptyProfileIsSignedOut() async throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { removeFolder() }  // the saved copy holds real pull requests
         let snapshot = await Snapshot.empty.refreshed(
             .all, github: github, accounts: Self.ownSignIns, tools: tools, now: .now)
         print(snapshot)
@@ -47,11 +52,18 @@ struct SnapshotLiveTests {
         #expect(snapshot.accounts.map(\.account.tool) == [.claude, .codex])
         #expect(snapshot.accounts.map(\.limits.trouble) == [nil, nil])
         #expect(snapshot.accounts.flatMap(\.limits.value).count == 3)
-        try SavedSnapshot.write(snapshot, to: Self.savedCopy)
 
-        let profiles = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+        let file = folder.appending(path: "snapshot.json")
+        try SavedSnapshot.write(snapshot, to: file)
+        let saved = SavedSnapshot.read(from: file)
+        #expect(saved.pullRequests.value.mine.map(\.id) == snapshot.pullRequests.value.mine.map(\.id))
+        #expect(
+            saved.accounts.flatMap(\.limits.value).map(\.label)
+                == snapshot.accounts.flatMap(\.limits.value).map(\.label))
+
         let emptyProfile = Account(
-            tool: .claude, name: "Personal", plan: "", profile: try Account.makeProfile(in: profiles))
+            tool: .claude, name: "Personal", plan: "",
+            profile: try Account.makeProfile(in: folder.appending(path: "Profiles")))
         let again = await snapshot.refreshed(
             .all, github: github, accounts: Self.ownSignIns + [emptyProfile], tools: tools, now: .now)
         print(again)
@@ -67,18 +79,23 @@ struct SnapshotLiveTests {
     @Test(.enabled(if: networkIsCut)) func withoutANetworkThePullRequestsAreOfflineAndTheSavedCopyReadsWhole()
         async throws
     {
-        let saved = SavedSnapshot.read(from: Self.savedCopy)
-        #expect(saved.pullRequests.readAt != nil)
-        #expect(saved.accounts.flatMap(\.limits.value).count == 3)
-        let snapshot = await saved.refreshed(
-            .all, github: github, accounts: saved.accounts.map(\.account), tools: tools, now: .now)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { removeFolder() }
+        var madeUp = SavedSnapshotTests.snapshot
+        madeUp.pullRequests.trouble = nil
+        madeUp.pullRequests.detail = nil
+        let file = folder.appending(path: "snapshot.json")
+        try SavedSnapshot.write(madeUp, to: file)
+
+        let snapshot = await SavedSnapshot.read(from: file).refreshed(
+            .pullRequests, github: github, accounts: madeUp.accounts.map(\.account), tools: tools,
+            now: Sample.now + 60)
         print(snapshot)
         #expect(snapshot.pullRequests.trouble == .offline)
-        #expect(snapshot.pullRequests.value == saved.pullRequests.value)
-        #expect(snapshot.pullRequests.readAt == saved.pullRequests.readAt)
-        for (now, before) in zip(snapshot.accounts, saved.accounts) where now.limits.trouble != nil {
-            #expect(now.limits.value == before.limits.value)
-        }
-        try FileManager.default.removeItem(at: Self.savedCopy)  // it holds real pull requests
+        #expect(snapshot.pullRequests.value == madeUp.pullRequests.value)
+        #expect(snapshot.pullRequests.readAt == madeUp.pullRequests.readAt)
+        #expect(snapshot.pullRequests.askedAt == Sample.now + 60)
+        #expect(snapshot.accounts == madeUp.accounts)
+        #expect(SavedSnapshot.read(from: file) == madeUp)
     }
 }
