@@ -15,7 +15,7 @@ func stage(_ name: String) -> Snapshot {
 
 @Suite(.serialized) struct PanelPictures {
     nonisolated static let stages: [(name: String, points: Int)] = [
-        ("day", 408), ("states", 486), ("many", 765), ("offline", 408), ("awkward", 272),
+        ("day", 408), ("limit", 408), ("states", 486), ("many", 765), ("offline", 408), ("awkward", 272),
     ]
 
     private func model(_ snapshot: Snapshot, _ defaults: UserDefaults) -> AppModel {

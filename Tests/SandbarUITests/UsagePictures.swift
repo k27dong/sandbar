@@ -35,11 +35,14 @@ import Testing
     }
 
     @Test func thePaceMarkCutsTheBar() async throws {
+        let pace = try #require(stage("day").accounts[0].limits.value[0].pace(now: AppModelTests.now))
+        let gap = Int(((6 + 10 + 16 + 8 + 72 + 8 + 36 + 8) + 140 * pace) * 2)
         for dark in [false, true] {
             let plain = try await picture("day", of: stage("day"), dark: dark)
             let paced = try await picture("day-pace", of: stage("day"), showsPace: true, dark: dark)
             #expect(paced.pixelsHigh == plain.pixelsHigh)
-            #expect(try pixels(paced) != pixels(plain))
+            #expect(plain.colorAt(x: gap, y: 30) == plain.colorAt(x: gap - 8, y: 30))
+            #expect(paced.colorAt(x: gap, y: 30) == paced.colorAt(x: 4, y: 30), "the background shows through")
         }
     }
 

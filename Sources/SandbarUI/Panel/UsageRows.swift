@@ -62,14 +62,18 @@ private struct UsageRow: View {
                         }
                     }
                 }
-                .overlay(alignment: .leading) {
-                    if let pace {
-                        GeometryReader { bar in
-                            Rectangle().frame(width: 2).offset(x: bar.size.width * pace - 1).blendMode(.destinationOut)
+                .mask {
+                    GeometryReader { bar in
+                        Path { path in
+                            path.addRect(CGRect(origin: .zero, size: bar.size))
+                            if let pace {
+                                path.addRect(
+                                    CGRect(x: bar.size.width * pace - 1, y: 0, width: 2, height: bar.size.height))
+                            }
                         }
+                        .fill(style: FillStyle(eoFill: true))
                     }
                 }
-                .compositingGroup()
                 .frame(height: 6)
                 .opacity(isDimmed ? 0.4 : 1)
             Text(limit?.amount ?? "–")
