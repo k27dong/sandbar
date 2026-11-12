@@ -73,6 +73,16 @@ import Testing
         }
     }
 
+    @Test func aBundleWithNoVersionHasNoVersionRow() async throws {
+        try await withHome { home in
+            let model = home.model()
+            let withVersion = try height(try pane(.general, of: model))
+            let withoutVersion = try height(
+                try pictures("general-no-version", of: SettingsView(pane: .general, version: nil).environment(model)))
+            #expect(withoutVersion < withVersion - 20, "one group fewer: \(withVersion), \(withoutVersion)")
+        }
+    }
+
     @Test func theRepositorySheetListsTheChosenOnesTooWithNoPullRequestNow() async throws {
         try await withHome { home in
             let model = home.model(snapshot: stage("day"))
