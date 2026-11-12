@@ -132,6 +132,9 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
             #expect(!preferences.notifications.reviewRequested)
             #expect(!preferences.notifications.limitNear)
             #expect(!preferences.notificationsPaused)
+            #expect(!preferences.isSetUp)
+            #expect(preferences.gitHubLogin == nil)
+            #expect(!preferences.usesGhSignIn)
         }
     }
 
@@ -151,6 +154,9 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
             preferences.notifications.reviewRequested = true
             preferences.notifications.limitNear = true
             preferences.notificationsPaused = true
+            preferences.isSetUp = true
+            preferences.gitHubLogin = "kd"
+            preferences.usesGhSignIn = true
 
             let again = Preferences(defaults: defaults)
             #expect(again.titles == .twoLines)
@@ -163,11 +169,16 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
             #expect(!again.notifications.approved)
             #expect(again.notifications.limitNear)
             #expect(again.notificationsPaused)
+            #expect(again.isSetUp)
+            #expect(again.gitHubLogin == "kd")
+            #expect(again.usesGhSignIn)
 
             again.chosenRepositories = nil
             again.time = .off
+            again.gitHubLogin = nil
             #expect(Preferences(defaults: defaults).chosenRepositories == nil)
             #expect(Preferences(defaults: defaults).time == .off)
+            #expect(Preferences(defaults: defaults).gitHubLogin == nil)
         }
     }
 
