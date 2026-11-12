@@ -17,7 +17,7 @@ struct SavedSnapshotTests {
                 ],
                 reviewRequests: [.sample(7, repository: "acme/api", author: "mchen", reviews: [review])],
                 hiddenOrganizations: ["acme-labs"]),
-            readAt: Sample.now - 60, askedAt: Sample.now, trouble: .offline, detail: "offline")
+            readAt: Sample.now - 60, askedAt: Sample.now, trouble: .offline, detail: "GitHub could not be reached.")
         snapshot.accounts = [
             Snapshot.AccountLimits(
                 account: Account(
@@ -32,7 +32,7 @@ struct SavedSnapshotTests {
                     readAt: Sample.now, askedAt: Sample.now)),
             Snapshot.AccountLimits(
                 account: Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil),
-                limits: Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .signedOut, detail: "signedOut")),
+                limits: Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .signedOut, detail: "Signed out.")),
         ]
         return snapshot
     }()
@@ -49,7 +49,7 @@ struct SavedSnapshotTests {
         #expect(text.hasPrefix("{\n  \"snapshot\" : {"))
         #expect(text.hasSuffix("\"version\" : 1\n}"))
         #expect(text.contains(#""askedAt" : "2026-11-12T18:00:00Z""#))
-        #expect(text.contains(#""detail" : "offline""#))
+        #expect(text.contains(#""detail" : "GitHub could not be reached.""#))
     }
 
     @Test(arguments: unreadable) func whatCannotBeReadIsEmpty(contents: String?) throws {
@@ -60,6 +60,20 @@ struct SavedSnapshotTests {
             try Data(contents.utf8).write(to: file)
         }
         #expect(SavedSnapshot.read(from: file) == .empty)
+    }
+
+    @Test func aCopySavedBeforeDetailsReadsWithNone() throws {
+        let file = file()
+        try SavedSnapshot.write(Self.snapshot, to: file)
+        let text = try String(contentsOf: file, encoding: .utf8)
+        let withoutDetails = text.replacing(#/\n *"detail" : "[^"]*",/#, with: "")
+        #expect(withoutDetails != text)
+        #expect(!withoutDetails.contains(#""detail""#))
+        try Data(withoutDetails.utf8).write(to: file)
+        var expected = Self.snapshot
+        expected.pullRequests.detail = nil
+        for index in expected.accounts.indices { expected.accounts[index].limits.detail = nil }
+        #expect(SavedSnapshot.read(from: file) == expected)
     }
 
     @Test func aWriteOverAnOldCopyLeavesACompleteFile() throws {

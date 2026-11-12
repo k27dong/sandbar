@@ -39,6 +39,29 @@ struct SnapshotTests {
             (quiet, Sample.now - 10, .failed, [Sample.now], []),
         ]
 
+    static let detailCases: [(error: any Error, tool: Tool?, sentence: String)] = [
+        (GitHubError.signedOut, nil, "GitHub sign-in is missing or no longer valid."),
+        (GitHubError.offline, nil, "GitHub could not be reached."),
+        (GitHubError.rejected(status: 502, body: "Bad gateway"), nil, "GitHub answered with status 502."),
+        (GitHubError.notUnderstood(#"{"data": null}"#), nil, "GitHub's answer was not understood."),
+        (ToolError.missing, .claude, "Claude Code was not found."),
+        (ToolError.missing, .codex, "Codex was not found."),
+        (ToolError.signedOut, .claude, "Signed out."),
+        (ToolError.signedOut, .codex, "Signed out."),
+        (ToolError.timedOut, .claude, "Claude Code did not answer in time."),
+        (ToolError.timedOut, .codex, "Codex did not answer in time."),
+        (
+            ToolError.failed(status: 1, output: "  Not logged in. Run claude auth login.\n"), .claude,
+            "Not logged in. Run claude auth login."
+        ),
+        (ToolError.failed(status: 1, output: " \n"), .claude, "Claude Code ended with status 1."),
+        (ToolError.failed(status: 2, output: ""), .codex, "Codex ended with status 2."),
+        (ToolError.notUnderstood("hello"), .claude, "Claude Code's answer was not understood."),
+        (ToolError.notUnderstood("hello"), .codex, "Codex's answer was not understood."),
+        (ToolError.missing, nil, "The read failed."),
+        (CancellationError(), .claude, "The read failed."),
+    ]
+
     func github(_ exchange: GitHubExchange) -> GitHubClient {
         GitHubClient(token: { "T" }, send: exchange.send)
     }
@@ -94,7 +117,7 @@ struct SnapshotTests {
             second.pullRequests
                 == Snapshot.Reading(
                     value: first.pullRequests.value, readAt: Sample.now, askedAt: Sample.now + 60, trouble: .failed,
-                    detail: #"rejected(status: 502, body: "Bad gateway")"#))
+                    detail: "GitHub answered with status 502."))
         #expect(second.pullRequests.value.mine.count == 2)
         let third = await second.refreshed(
             .pullRequests, github: client, accounts: [], tools: [:], now: Sample.now + 120)
@@ -110,7 +133,7 @@ struct SnapshotTests {
             snapshot.pullRequests
                 == Snapshot.Reading(
                     value: Snapshot.empty.pullRequests.value, askedAt: Sample.now, trouble: .signedOut,
-                    detail: "signedOut"))
+                    detail: "GitHub sign-in is missing or no longer valid."))
     }
 
     @Test func noNetworkIsOffline() async {
@@ -118,7 +141,7 @@ struct SnapshotTests {
         let snapshot = await Snapshot.empty.refreshed(
             .pullRequests, github: client, accounts: [], tools: [:], now: Sample.now)
         #expect(snapshot.pullRequests.trouble == .offline)
-        #expect(snapshot.pullRequests.detail == "offline")
+        #expect(snapshot.pullRequests.detail == "GitHub could not be reached.")
         #expect(snapshot.pullRequests.askedAt == Sample.now)
     }
 
@@ -168,7 +191,8 @@ struct SnapshotTests {
             .limits, github: nil, accounts: [Self.claudeWork], tools: [.codex: try codex()], now: Sample.now)
         #expect(
             snapshot.accounts.map(\.limits) == [
-                Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .toolMissing, detail: "missing")
+                Snapshot.Reading(
+                    value: [], askedAt: Sample.now, trouble: .toolMissing, detail: "Claude Code was not found.")
             ]
         )
     }
@@ -183,7 +207,7 @@ struct SnapshotTests {
             second.accounts.map(\.limits) == [
                 Snapshot.Reading(
                     value: [Self.claudeWeek], readAt: Sample.now, askedAt: Sample.now + 300, trouble: .signedOut,
-                    detail: "signedOut")
+                    detail: "Signed out.")
             ])
     }
 
@@ -199,9 +223,33 @@ struct SnapshotTests {
         #expect(snapshot.pullRequests.value.mine.count == 2)
         #expect(
             snapshot.accounts.map(\.limits) == [
-                Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .failed, detail: "timedOut"),
+                Snapshot.Reading(
+                    value: [], askedAt: Sample.now, trouble: .failed, detail: "Claude Code did not answer in time."),
                 Snapshot.Reading(value: [Self.codexFiveHours], readAt: Sample.now, askedAt: Sample.now),
             ])
+    }
+
+    @Test(arguments: detailCases) func eachFailureIsSaidInAPlainSentence(
+        error: any Error, tool: Tool?, sentence: String
+    ) {
+        #expect(Snapshot.detail(of: error, tool: tool) == sentence)
+    }
+
+    @Test func aLongToolOutputIsCutTo300Characters() async throws {
+        let output = String(repeating: "x", count: 400)
+        let tool = try FakeTool.script(
+            named: "claude",
+            """
+            case "$*" in
+              "auth status") echo '{"loggedIn": true}' ;;
+              *) echo \(output) >&2; exit 3 ;;
+            esac
+            """
+        )
+        let snapshot = await Snapshot.empty.refreshed(
+            .limits, github: nil, accounts: [Self.claudeWork], tools: [.claude: tool], now: Sample.now)
+        #expect(snapshot.accounts.map(\.limits.trouble) == [.failed])
+        #expect(snapshot.accounts.map(\.limits.detail) == [String(repeating: "x", count: 300)])
     }
 
     @Test(arguments: dueCases)

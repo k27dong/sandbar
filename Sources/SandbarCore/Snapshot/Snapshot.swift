@@ -32,7 +32,7 @@ package struct Snapshot: Codable, Equatable, Sendable {
             self.detail = detail
         }
 
-        fileprivate func asked(at now: Date, read: () async throws -> Value) async -> Reading {
+        fileprivate func asked(at now: Date, by tool: Tool?, read: () async throws -> Value) async -> Reading {
             var reading = self
             reading.askedAt = now
             do {
@@ -48,7 +48,7 @@ package struct Snapshot: Codable, Equatable, Sendable {
                     case ToolError.missing: .toolMissing
                     default: .failed
                     }
-                reading.detail = String(String(describing: error).prefix(300))
+                reading.detail = Snapshot.detail(of: error, tool: tool)
             }
             return reading
         }
@@ -79,7 +79,7 @@ package struct Snapshot: Codable, Equatable, Sendable {
     ) async -> Snapshot {
         async let pullRequests =
             parts.contains(.pullRequests)
-            ? self.pullRequests.asked(at: now) {
+            ? self.pullRequests.asked(at: now, by: nil) {
                 guard let github else { throw GitHubError.signedOut }
                 return try await github.pullRequests()
             }
@@ -92,7 +92,7 @@ package struct Snapshot: Codable, Equatable, Sendable {
                 let last = known[account.id] ?? Reading(value: [])
                 group.addTask {
                     guard parts.contains(.limits) else { return (index, AccountLimits(account: account, limits: last)) }
-                    let limits = await last.asked(at: now) {
+                    let limits = await last.asked(at: now, by: account.tool) {
                         guard let program = tools[account.tool] else { throw ToolError.missing }
                         let (status, limits) =
                             switch account.tool {
@@ -110,6 +110,39 @@ package struct Snapshot: Codable, Equatable, Sendable {
             return await group.reduce(into: []) { $0.append($1) }.sorted { $0.0 < $1.0 }.map(\.1)
         }
         return Snapshot(pullRequests: await pullRequests, accounts: accountLimits)
+    }
+
+    package static func detail(of error: any Error, tool: Tool?) -> String {
+        let name: String? =
+            switch tool {
+            case .claude: "Claude Code"
+            case .codex: "Codex"
+            case nil: nil
+            }
+        let sentence =
+            switch error {
+            case GitHubError.signedOut: "GitHub sign-in is missing or no longer valid."
+            case GitHubError.offline: "GitHub could not be reached."
+            case GitHubError.rejected(let status, _): "GitHub answered with status \(status)."
+            case GitHubError.notUnderstood: "GitHub's answer was not understood."
+            case let error as ToolError:
+                if let name {
+                    switch error {
+                    case .missing: "\(name) was not found."
+                    case .signedOut: "Signed out."
+                    case .timedOut: "\(name) did not answer in time."
+                    case .failed(let status, let output):
+                        output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            ? "\(name) ended with status \(status)."
+                            : output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    case .notUnderstood: "\(name)'s answer was not understood."
+                    }
+                } else {
+                    "The read failed."
+                }
+            default: "The read failed."
+            }
+        return String(sentence.prefix(300))
     }
 
     package func due(at now: Date) -> Parts {
