@@ -10,7 +10,7 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
     try await body(defaults)
 }
 
-struct AppModelTests {
+@Suite(.serialized) struct AppModelTests {
     static let now = Date(timeIntervalSince1970: 1_794_506_400)  // 2026-11-12 18:00 UTC
 
     nonisolated static let statuses: [(readSecondsAgo: TimeInterval?, trouble: Snapshot.Trouble?, status: String)] = [
@@ -65,15 +65,21 @@ struct AppModelTests {
         }
     }
 
-    private func withModel(
-        _ body: @MainActor (AppModel, GitHub, AppModel.Files) async throws -> Void
+    private func withStub(
+        _ body: @MainActor (GitHub, AppModel.Files, UserDefaults) async throws -> Void
     ) async throws {
         try await withDefaults { defaults in
             let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             defer { #expect(throws: Never.self) { try FileManager.default.removeItem(at: folder) } }
-            let github = GitHub()
-            let files = AppModel.Files(folder: folder)
+            try await body(GitHub(), AppModel.Files(folder: folder), defaults)
+        }
+    }
+
+    private func withModel(
+        _ body: @MainActor (AppModel, GitHub, AppModel.Files) async throws -> Void
+    ) async throws {
+        try await withStub { github, files, defaults in
             let model = AppModel(
                 preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files)
             try await body(model, github, files)
@@ -269,6 +275,24 @@ struct AppModelTests {
             workspace.notificationCenter.post(name: NSWorkspace.didWakeNotification, object: workspace)
             await settled(model)
             #expect(await github.requests == whileAsleep + 1)
+        }
+    }
+
+    @Test func aReleasedModelNoLongerHearsTheWake() async throws {
+        try await withStub { github, files, defaults in
+            weak var released: AppModel?
+            do {
+                let model = AppModel(
+                    preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files)
+                await started(model, github)
+                released = model
+            }
+            #expect(released == nil)
+
+            let workspace = NSWorkspace.shared
+            workspace.notificationCenter.post(name: NSWorkspace.didWakeNotification, object: workspace)
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(await github.requests == 1)
         }
     }
 

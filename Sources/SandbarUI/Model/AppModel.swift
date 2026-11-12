@@ -22,6 +22,17 @@ import os
             folder: URL.applicationSupportDirectory.appending(path: "Sandbar", directoryHint: .isDirectory))
     }
 
+    private nonisolated struct Listening: ~Copyable {
+        var notices: NotificationCenter
+        var observers: [any NSObjectProtocol]
+        var network: NWPathMonitor
+
+        deinit {
+            for observer in observers { notices.removeObserver(observer) }
+            network.cancel()
+        }
+    }
+
     package private(set) var snapshot: Snapshot
     package let preferences: Preferences
     package var now: Date
@@ -36,10 +47,10 @@ import os
 
     private let github: GitHubClient?
     private let files: Files
-    private let network = NWPathMonitor()
     private var isAsleep = false
     private var isStarted = false
     private var isFixed = false
+    @ObservationIgnored private var listening: Listening?
 
     package init(
         snapshot: Snapshot = .empty, preferences: Preferences = Preferences(), now: Date = .now,
@@ -87,20 +98,27 @@ import os
         isStarted = true
         snapshot = SavedSnapshot.read(from: files.snapshot)
         let notices = NSWorkspace.shared.notificationCenter
-        _ = notices.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: nil) { [weak self] _ in
-            Task { @MainActor in self?.isAsleep = true }
-        }  // never taken back, like the one below: a started model listens for as long as the app runs
-        _ = notices.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) { [weak self] _ in
-            Task { @MainActor in
-                self?.isAsleep = false
-                self?.refreshAtOnce()
-            }
-        }
+        let network = NWPathMonitor()
         network.pathUpdateHandler = { [weak self] path in
             let hasNetwork = path.status == .satisfied
             Task { @MainActor in self?.hasNetwork = hasNetwork }
         }
         network.start(queue: .main)
+        listening = Listening(
+            notices: notices,
+            observers: [
+                notices.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: nil) {
+                    [weak self] _ in
+                    Task { @MainActor in self?.isAsleep = true }
+                },
+                notices.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) {
+                    [weak self] _ in
+                    Task { @MainActor in
+                        self?.isAsleep = false
+                        self?.refreshAtOnce()
+                    }
+                },
+            ], network: network)
         Task { [weak self] in
             await self?.refresh(.all)
             while true {
