@@ -68,8 +68,11 @@ struct ToolDownloadTests {
         )
     }
 
-    func codexArchive(triple: String) async throws -> URL {
+    func codexArchive(triple: String, built: Date? = nil) async throws -> URL {
         let program = try FakeTool.script(named: "codex-app-server-\(triple)", "exit 0")
+        if let built {
+            try FileManager.default.setAttributes([.modificationDate: built], ofItemAtPath: program.path)
+        }
         let archive = program.deletingLastPathComponent().appending(path: "codex.tar.gz")
         let packed = try await Command.run(
             URL(filePath: "/usr/bin/tar"),
@@ -148,6 +151,13 @@ struct ToolDownloadTests {
         let now = Date(timeIntervalSince1970: 1_794_506_400)
         try FileManager.default.setAttributes([.modificationDate: now - days * 86_400], ofItemAtPath: program.path)
         #expect(try stub().isOld(.claude, at: now) == isOld)
+    }
+
+    @Test func aCopyFetchedTodayIsNotOldWhateverDateTheMakerGaveItsProgram() async throws {
+        let archive = try await codexArchive(triple: "aarch64-apple-darwin", built: .now - 30 * 86_400)
+        _ = try await stub(checksum: "cc33", archive: archive).install(.codex, platform: .macArm)
+        #expect(try !stub().isOld(.codex, at: .now))
+        #expect(try stub().isOld(.codex, at: .now + 14 * 86_400))
     }
 
     @Test func aToolWithNoCopyIsNotOld() throws {

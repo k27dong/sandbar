@@ -195,7 +195,9 @@ package struct ToolDownload: Sendable {
         try FileManager.default.createDirectory(
             at: program.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.moveItem(at: file, to: program)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: program.path)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755, .modificationDate: Date.now],  // a copy ages from the fetch, not from its build
+            ofItemAtPath: program.path)
         let toolFolder = folder.appending(path: tool.rawValue)
         for entry in try FileManager.default.contentsOfDirectory(atPath: toolFolder.path) where entry != version {
             try FileManager.default.removeItem(at: toolFolder.appending(path: entry))
