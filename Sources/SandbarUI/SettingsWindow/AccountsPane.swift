@@ -29,7 +29,9 @@ struct AccountsPane: View {
                 } header: {
                     Text(tool.title)
                 } footer: {
-                    if tool == Tool.allCases.last, let note = model.accountsNote { Text(note) }
+                    if tool == Tool.allCases.last, let note = model.accountsNote {
+                        Text(note).frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
         }

@@ -49,6 +49,19 @@ import Testing
         }
     }
 
+    @Test func anAccountThatCannotBeReadSaysWhyUnderItsName() async throws {
+        try await withHome { home in
+            var troubled = Self.accounts
+            troubled.accounts[2].limits = Snapshot.Reading(value: [], trouble: .signedOut, detail: "Signed out.")
+            let plain = try height(try pane(.accounts, of: home.model(snapshot: Self.accounts)))
+            let withTrouble = try height(
+                try pictures(
+                    "accounts-trouble",
+                    of: SettingsView(pane: .accounts, version: "0.1.0").environment(home.model(snapshot: troubled))))
+            #expect(withTrouble > plain + 4, "one more line: \(plain), \(withTrouble)")
+        }
+    }
+
     @Test func theRepositorySheetListsTheChosenOnesTooWithNoPullRequestNow() async throws {
         try await withHome { home in
             let model = home.model(snapshot: stage("day"))
