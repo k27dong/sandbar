@@ -29,13 +29,31 @@ item() {  # the status item has a menu bar of its own, beside Sandbar's hidden m
 press() {
     osascript -e "tell application \"System Events\" to keystroke \"$1\" using {$2}"
 }
+key() {
+    osascript -e 'tell application "System Events"' -e "repeat $2 times" -e "key code $1" -e 'delay 0.05' \
+        -e 'end repeat' -e 'end tell'
+}
 capture() {
     sleep 1
     mkdir -p "$(dirname "$1")"
     screencapture -x "$1"
 }
+runs() {  # an ended program stays in the process list until it is waited for
+    case "$(ps -o stat= -p "$program")" in '' | Z*) return 1 ;; esac
+}
+frontWindow() {
+    osascript -e "tell application \"System Events\" to tell (first process whose unix id is $program)" \
+        -e 'if (count of windows) is 0 then return "none"' -e 'return name of window 1' -e 'end tell'
+}
+expectWindow() {
+    shown="$(frontWindow)"
+    if [ "$shown" != "$1" ]; then
+        echo "Sandbar's front window is $shown, not $1" >&2
+        exit 1
+    fi
+}
 element() {
-    osascript - "$program" "$1" "$2" <<'END' >/dev/null
+    osascript - "$program" "$1" "$2" <<'END'
 on run arguments
     set {program, wanted, action} to arguments
     with timeout of 20 seconds
@@ -48,6 +66,9 @@ on run arguments
                     set end of labels to name of candidate
                 end try
                 try
+                    set end of labels to description of candidate
+                end try
+                try
                     set end of labels to value of candidate
                 end try
                 try
@@ -55,7 +76,12 @@ on run arguments
                 end try
                 if labels contains wanted then
                     if action is "click" then click candidate
-                    if action is "focus" then set focused of candidate to true
+                    if action is "value" then return value of candidate
+                    if action is "middle" then
+                        set {x, y} to position of candidate
+                        set {width, height} to size of candidate
+                        return ((x + width div 2) as text) & " " & ((y + height div 2) as text)
+                    end if
                     return
                 end if
             end repeat
@@ -65,6 +91,18 @@ on run arguments
 end run
 END
 }
+clickAt() {  # with the mouse, as a person does: System Events' click is a press that no mouse made
+    osascript -l JavaScript - "$1" "$2" <<'END'
+ObjC.import("CoreGraphics")
+function run(place) {
+    const point = { x: Number(place[0]), y: Number(place[1]) }
+    for (const kind of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
+        $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent($(), kind, point, $.kCGMouseButtonLeft))
+        delay(0.12)
+    }
+}
+END
+}
 waitFor() {
     deadline=$(($(date +%s) + $2))
     until element "$1" find 2>/dev/null; do
@@ -72,8 +110,7 @@ waitFor() {
             echo "Sandbar never showed $1" >&2
             exit 1
         fi
-        windows="$(osascript -e "tell application \"System Events\" to count windows of (first process whose unix id is $program)")"
-        if [ "$windows" = 0 ]; then item click || true; fi  # a browser page that opens closes the panel
+        if [ "$(frontWindow)" = none ]; then item click || true; fi  # a browser page that opens closes the panel
         sleep 1
     done
 }
@@ -90,7 +127,7 @@ until item "$action"; do
 done
 
 case "$opening" in
-    settings) sleep 1 && press , "command down" ;;
+    settings | close) sleep 1 && press , "command down" ;;
     shortcut) press p "option down, command down" ;;
     gear)
         sleep 1
@@ -118,8 +155,14 @@ END
         waitFor "Finish in your browser" 120
         waitFor AXTextField 20
         printf WDJB-MJHT | pbcopy
-        element AXTextField focus
+        clickAt $(element AXTextField middle)
         press v "command down"
+        ;;
+    keys)  # on the many stage: the sixth row down is the first stack's fold row, and Return opens that stack
+        sleep 1
+        key 125 6
+        key 36 1
+        key 125 1
         ;;
 esac
 capture "$output"
@@ -130,7 +173,41 @@ if [ "$opening" = settings ]; then
         capture "${output%.png}-$(echo "$pane" | tr -d ' ' | tr '[:upper:]' '[:lower:]').png"
     done
 fi
+if [ "$opening" = keys ]; then
+    key 125 60
+    capture "${output%.png}-last-row.png"
+fi
+if [ "$opening" = close ]; then
+    expectWindow General
+    press w "command down"
+    capture "${output%.png}-closed.png"
+    expectWindow none
+    item click
+    sleep 1
+    press , "command down"
+    sleep 1
+    expectWindow General
+    press q "command down"
+    deadline=$(($(date +%s) + 10))
+    while runs; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "Sandbar still runs 10 seconds after ⌘Q with Settings in front" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+    wait "$program" || {
+        echo "Sandbar ended with status $? after ⌘Q" >&2
+        exit 1
+    }
+    exit 0
+fi
 if [ "$opening" = claude-sign-in ]; then
+    pasted="$(element AXTextField value)"
+    if [ "$pasted" != WDJB-MJHT ]; then
+        echo "⌘V left \"$pasted\" in the code field" >&2
+        exit 1
+    fi
     element Cancel click
     waitFor "Not signed in" 20
     capture "$(dirname "$output")/app-claude-cancelled.png"
@@ -144,7 +221,7 @@ if [ "$opening" = claude-sign-in ]; then
         exit 1
     fi
 fi
-if ! kill -0 "$program" 2>/dev/null; then
+if ! runs; then
     echo "Sandbar ended before its screenshot was taken" >&2
     exit 1
 fi
