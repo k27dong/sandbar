@@ -40,11 +40,13 @@ package final class StatusItem {
         let picture = NSImage(size: size, flipped: false) { @Sendable _ in
             let ink = NSColor.textColor
             let center = NSPoint(x: side / 2, y: side / 2)
+            let radius: CGFloat = 6.6
+            let lineWidth: CGFloat = 2.2
             let track = NSBezierPath()
-            track.lineWidth = 2.2
+            track.lineWidth = lineWidth
             track.appendArc(
-                withCenter: center, radius: 6.6, startAngle: 360, endAngle: 0,
-                clockwise: true)  // from 3 o'clock, so the dashes fall where the design draws them
+                withCenter: center, radius: radius, startAngle: 360, endAngle: 0,
+                clockwise: true)  // clockwise, as SVG strokes a circle, so the dashes fall where the design has them
             switch ring {
             case .none:
                 track.setLineDash([2.3, 2.5], count: 2, phase: 0)
@@ -54,10 +56,10 @@ package final class StatusItem {
                 ink.withAlphaComponent(0.28).setStroke()
                 track.stroke()
                 let arc = NSBezierPath()
-                arc.lineWidth = 2.2
+                arc.lineWidth = lineWidth
                 arc.lineCapStyle = .round
                 arc.appendArc(
-                    withCenter: center, radius: 6.6, startAngle: 90, endAngle: 90 - 360 * min(1, max(0, share)),
+                    withCenter: center, radius: radius, startAngle: 90, endAngle: 90 - 360 * min(1, max(0, share)),
                     clockwise: true)
                 (tone ?? ink).setStroke()
                 arc.stroke()
