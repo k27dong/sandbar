@@ -10,26 +10,32 @@ package enum ClaudeUsage {
         tool: URL, environment: [String: String], timeout: Duration = .seconds(30)
     ) async throws -> [UsageLimit] {
         let output = try await Command.run(tool, arguments, environment: environment, timeout: timeout)
-        do {
-            return try limits(inReport: output.standardOutput)
-        } catch ToolError.notUnderstood(let printed) where output.status != 0 {
-            let complaint = output.standardError.isEmpty ? Data(printed.utf8) : output.standardError
-            throw ToolError.failed(
-                status: output.status, output: String(decoding: complaint.suffix(2_000), as: UTF8.self))
-        }
+        if let limits = try reported(in: output.standardOutput) { return limits }
+        guard output.status != 0 else { throw ToolError.notUnderstood(tail(output.standardOutput)) }
+        let complaint = output.standardError.isEmpty ? output.standardOutput : output.standardError
+        throw ToolError.failed(status: output.status, output: tail(complaint))
     }
 
     package static func limits(inReport output: Data) throws -> [UsageLimit] {
-        let printed = String(decoding: output.suffix(2_000), as: UTF8.self)
+        guard let limits = try reported(in: output) else { throw ToolError.notUnderstood(tail(output)) }
+        return limits
+    }
+
+    private static func tail(_ data: Data) -> String {
+        String(decoding: data.suffix(2_000), as: UTF8.self)
+    }
+
+    private static func reported(in output: Data) throws -> [UsageLimit]? {
+        let printed = tail(output)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let report: RateLimits
         do {
             let objects = output.split(separator: 0x0A).filter {
-                (try? JSONSerialization.jsonObject(with: Data($0))) is [String: Any]  // stray text lines are skipped
+                (try? JSONSerialization.jsonObject(with: Data($0))) is [String: Any]
             }
             let found = try objects.compactMap { try decoder.decode(Line.self, from: Data($0)).usageReport }.first
-            guard let found else { throw ToolError.notUnderstood(printed) }
+            guard let found else { return nil }
             report = found.rateLimits
         } catch is DecodingError {
             throw ToolError.notUnderstood(printed)

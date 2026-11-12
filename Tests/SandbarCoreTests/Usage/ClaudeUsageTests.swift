@@ -173,6 +173,15 @@ struct ClaudeUsageTests {
         }
     }
 
+    @Test func aMalformedReportIsNotUnderstoodWhateverTheExitStatus() async throws {
+        let limit = Self.weeklyAll.replacing(#""percent": 37, "#, with: "")
+        let printed = String(decoding: Self.output(limits: [limit], extraUsage: Self.noExtraUsage), as: UTF8.self)
+        let tool = try claude("cat <<'EOF'\n\(printed)EOF\nexit 1")
+        await #expect(throws: ToolError.notUnderstood(printed)) {
+            try await ClaudeUsage.limits(tool: tool, environment: [:])
+        }
+    }
+
     @Test func aToolThatSleepsTimesOut() async throws {
         let tool = try claude("sleep 30")
         await #expect(throws: ToolError.timedOut) {
