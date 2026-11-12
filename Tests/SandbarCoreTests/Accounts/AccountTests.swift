@@ -26,30 +26,6 @@ struct AccountTests {
         return URL(filePath: String(cString: real), directoryHint: .isDirectory)
     }
 
-    func profile(_ misplacement: Misplacement, profiles: URL, outside: URL) throws -> URL {
-        let files = FileManager.default
-        switch misplacement {
-        case .sibling:
-            return outside
-        case .symlink:
-            let link = profiles.appending(path: "link")
-            try files.createSymbolicLink(at: link, withDestinationURL: outside)
-            return link
-        case .symlinkThenParent:
-            try files.createDirectory(at: outside.appending(path: "inner"), withIntermediateDirectories: true)
-            try files.createDirectory(at: outside.appending(path: "y"), withIntermediateDirectories: true)
-            try files.createSymbolicLink(
-                at: profiles.appending(path: "x"), withDestinationURL: outside.appending(path: "inner"))
-            return URL(filePath: profiles.path + "/x/../y")
-        case .climbingOut:
-            return URL(filePath: profiles.path + "/../" + outside.lastPathComponent)
-        case .profilesItself:
-            return profiles
-        case .empty:
-            return URL(filePath: "")
-        }
-    }
-
     func signOutRecorder() throws -> URL {
         try FakeTool.script(
             named: "claude", #"echo "$* $CLAUDE_CONFIG_DIR" > "$(dirname "$0")/called""#)
@@ -151,25 +127,63 @@ struct AccountTests {
         #expect(!FileManager.default.fileExists(atPath: profile.path))
     }
 
-    @Test(arguments: Misplacement.allCases) func aProfileNotDirectlyInsideProfilesIsNeverForgotten(
+    @Test func aProfileAlreadyGoneIsForgottenWithoutRunningAnything() async throws {
+        let profiles = try folder()
+        let profile = try Account.makeProfile(in: profiles)
+        try FileManager.default.removeItem(at: profile)
+        let tool = try signOutRecorder()
+        try await Account(tool: .claude, name: "Work", plan: "Enterprise", profile: profile)
+            .forget(tool: tool, profiles: profiles)
+        #expect(try called(tool) == nil)
+    }
+
+    @Test func aFailedSignOutKeepsTheProfile() async throws {
+        let profiles = try folder()
+        let profile = try Account.makeProfile(in: profiles)
+        let tool = try FakeTool.script(named: "claude", "echo refused >&2; exit 1")
+        await #expect(throws: ToolError.failed(status: 1, output: "refused\n")) {
+            try await Account(tool: .claude, name: "Work", plan: "Enterprise", profile: profile)
+                .forget(tool: tool, profiles: profiles)
+        }
+        #expect(FileManager.default.fileExists(atPath: profile.path))
+    }
+
+    @Test(arguments: Misplacement.allCases) func aProfileNotDirectlyInsideProfilesIsRefused(
         misplacement: Misplacement
-    ) async throws {
+    ) throws {
+        let files = FileManager.default
         let root = try folder()
         let profiles = root.appending(path: "Profiles")
         let outside = root.appending(path: "outside")
         for kept in [profiles, outside] {
-            try FileManager.default.createDirectory(at: kept, withIntermediateDirectories: true)
+            try files.createDirectory(at: kept, withIntermediateDirectories: true)
             try Data().write(to: kept.appending(path: "kept"))
         }
-        let misplaced = try profile(misplacement, profiles: profiles, outside: outside)
-        let before = try FileManager.default.subpathsOfDirectory(atPath: root.path).sorted()
-        let tool = try FakeTool.script(  // refusing to sign out keeps a broken check from reaching the delete
-            named: "claude", #"echo "$*" > "$(dirname "$0")/called"; exit 1"#)
-        await #expect(throws: Account.Misplaced.profile(misplaced)) {
-            try await Account(tool: .claude, name: "Work", plan: "Enterprise", profile: misplaced)
-                .forget(tool: tool, profiles: profiles)
+        let misplaced: URL
+        switch misplacement {
+        case .sibling:
+            misplaced = outside
+        case .symlink:
+            misplaced = profiles.appending(path: "link")
+            try files.createSymbolicLink(at: misplaced, withDestinationURL: outside)
+        case .symlinkThenParent:
+            try files.createDirectory(at: outside.appending(path: "inner"), withIntermediateDirectories: true)
+            try files.createDirectory(at: outside.appending(path: "y"), withIntermediateDirectories: true)
+            try files.createSymbolicLink(
+                at: profiles.appending(path: "x"), withDestinationURL: outside.appending(path: "inner"))
+            misplaced = URL(filePath: profiles.path + "/x/../y")
+        case .climbingOut:
+            misplaced = URL(filePath: profiles.path + "/../" + outside.lastPathComponent)
+        case .profilesItself:
+            misplaced = profiles
+        case .empty:
+            misplaced = URL(filePath: "")
         }
-        #expect(try FileManager.default.subpathsOfDirectory(atPath: root.path).sorted() == before)
-        #expect(try called(tool) == nil)
+        let before = try files.subpathsOfDirectory(atPath: root.path).sorted()
+        #expect(throws: Account.Misplaced.profile(misplaced)) {
+            try Account(tool: .claude, name: "Work", plan: "Enterprise", profile: misplaced)
+                .profileToForget(in: profiles)
+        }
+        #expect(try files.subpathsOfDirectory(atPath: root.path).sorted() == before)
     }
 }
