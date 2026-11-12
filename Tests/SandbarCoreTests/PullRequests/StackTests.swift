@@ -73,6 +73,20 @@ struct StackTests {
         #expect(grouped.singles.count == 2)
     }
 
+    @Test func stackedPullRequestOnTheSameBaseBreaksABranchLink() {
+        let lower = PullRequest.sample(1, headBranch: "cart")
+        let upper = PullRequest.sample(2, baseBranch: "cart", headBranch: "cart-totals")
+        let stacked = PullRequest.sample(
+            3,
+            baseBranch: "cart",
+            headBranch: "cart-coupons",
+            stack: PullRequest.StackPlace(number: 7, position: 1)
+        )
+        let grouped = Stack.grouping([lower, upper, stacked])
+        #expect(grouped.stacks.isEmpty)
+        #expect(grouped.singles.map(\.number).sorted() == [1, 2, 3])
+    }
+
     @Test func foldedStackOfFiveShowsTheFirstTwo() throws {
         let stack = try #require(Stack.grouping(Self.githubStack(positions: [1, 2, 3, 4, 5])).stacks.first)
         #expect(stack.shown(isOpen: false).map(\.number) == [41, 42])

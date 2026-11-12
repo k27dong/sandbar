@@ -53,8 +53,7 @@ struct ChecksTests {
     @Test func newestRunIsChosenBeforeTheRequiredFilter() {
         let runs = [
             CheckRun(name: "test", isRequired: true, outcome: .failed, startedAt: Self.earlier),
-            CheckRun(name: "test", isRequired: true, outcome: .passed, startedAt: Self.later),
-            CheckRun(name: "unused-exports", isRequired: false, outcome: .failed, startedAt: Self.later),
+            CheckRun(name: "test", isRequired: false, outcome: .passed, startedAt: Self.later),
         ]
         #expect(Checks(counting: runs) == Checks(verdict: .passed))
     }

@@ -22,7 +22,7 @@ package struct Stack: Hashable, Identifiable, Sendable {
                 githubGroups.append([pullRequest])
             }
         }
-        let groups = githubGroups + chainedByBranch(pullRequests.filter { $0.stack == nil })
+        let groups = githubGroups + chainedByBranch(pullRequests)
 
         var stacks: [Stack] = []
         var singles: [PullRequest] = []
@@ -47,14 +47,15 @@ package struct Stack: Hashable, Identifiable, Sendable {
         let byHead = Dictionary(grouping: pullRequests) { Branch(repository: $0.repository, name: $0.headBranch) }
         let byBase = Dictionary(grouping: pullRequests) { Branch(repository: $0.repository, name: $0.baseBranch) }
         func link(at branch: Branch) -> (lower: PullRequest, upper: PullRequest)? {
-            guard let lower = byHead[branch], lower.count == 1, let upper = byBase[branch], upper.count == 1
+            guard let lower = byHead[branch], lower.count == 1, let upper = byBase[branch], upper.count == 1,
+                lower[0].stack == nil, upper[0].stack == nil
             else { return nil }
             return (lower[0], upper[0])
         }
 
         var chains: [[PullRequest]] = []
         var chained: Set<String> = []
-        for start in pullRequests where !chained.contains(start.id) {
+        for start in pullRequests where start.stack == nil && !chained.contains(start.id) {
             var bottom = start
             var seen: Set<String> = [start.id]
             while let lower = link(at: Branch(repository: bottom.repository, name: bottom.baseBranch))?.lower,

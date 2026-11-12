@@ -25,8 +25,10 @@ package struct PullRequestList: Equatable, Sendable {
     package init(mine: [PullRequest], reviewRequests: [PullRequest]) {
         let grouped = Stack.grouping(mine)
         let entries = grouped.stacks.map(Entry.stack) + grouped.singles.map(Entry.single)
-        self.mine = entries.sorted { ($0.lead.place, $0.lead.createdAt) < ($1.lead.place, $1.lead.createdAt) }
-        self.reviewRequests = reviewRequests.sorted { $0.createdAt < $1.createdAt }
+        self.mine = entries.sorted {
+            ($0.lead.place, $0.lead.createdAt, $0.lead.number) < ($1.lead.place, $1.lead.createdAt, $1.lead.number)
+        }
+        self.reviewRequests = reviewRequests.sorted { ($0.createdAt, $0.number) < ($1.createdAt, $1.number) }
         openCount = mine.count
     }
 }

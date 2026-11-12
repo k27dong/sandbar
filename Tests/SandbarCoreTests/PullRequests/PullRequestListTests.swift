@@ -36,6 +36,15 @@ struct PullRequestListTests {
         #expect(list.mine.map(\.id) == ["acme/storefront#cart", single.id])
     }
 
+    @Test func lowerNumberBreaksATie() {
+        let list = PullRequestList(
+            mine: [PullRequest.sample(5), PullRequest.sample(3)],
+            reviewRequests: [PullRequest.sample(8, author: "mchen"), PullRequest.sample(6, author: "dana")]
+        )
+        #expect(list.mine.map(\.lead.number) == [3, 5])
+        #expect(list.reviewRequests.map(\.number) == [6, 8])
+    }
+
     @Test func reviewRequestsComeLongestOpenFirst() {
         let recent = PullRequest.sample(1, author: "mchen", createdAt: Sample.now - 3_600)
         let oldest = PullRequest.sample(2, author: "priya", createdAt: Sample.now - 9 * 86_400)
