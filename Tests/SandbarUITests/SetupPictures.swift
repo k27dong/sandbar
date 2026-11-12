@@ -189,6 +189,7 @@ import Testing
                 let dimmed = try buttonInk(picture, middle: rowMiddle(2) + 32)
                 #expect(dimmed != (try background(picture)), "Sign in is still there")
                 #expect(dimmed != (try buttonInk(before, middle: rowMiddle(2))), "and dimmed")
+                #expect(try buttonInk(picture, middle: Self.doneMiddle + 32) == dimmed, "and so is Done")
             }
 
             model.pasteCode("another-code")

@@ -62,6 +62,7 @@ package struct SetupView: View {
                 if !model.needsGitHubSignIn {
                     Button("Done") { model.finishSetup() }
                         .buttonStyle(RowButton(isPrimary: next == nil))
+                        .unavailable(model.isSigningIn)  // Done would leave a sign-in with no Cancel and no code field
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .padding(EdgeInsets(top: 4, leading: 10, bottom: 6, trailing: 10))
                 }
