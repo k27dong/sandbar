@@ -85,6 +85,11 @@ package final class PanelWindow {
                     self?.close()
                     return nil
                 }
+                if event.modifierFlags.contains(.command),
+                    NSApplication.shared.mainMenu?.performKeyEquivalent(with: event) == true
+                {
+                    return nil  // the main menu takes no key from this panel while another app is active
+                }
                 return event
             },
         ].compactMap { $0 }
