@@ -4,7 +4,8 @@ package enum ClaudeUsage {
     private static let arguments = [
         "--safe-mode", "--no-session-persistence", "-p", "/usage", "--output-format", "stream-json", "--verbose",
     ]
-    private static let timestamp = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+    private static let timestampWithDecimals = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+    private static let timestamp = Date.ISO8601FormatStyle()
 
     package static func limits(
         tool: URL, environment: [String: String], timeout: Duration = .seconds(30)
@@ -44,6 +45,8 @@ package enum ClaudeUsage {
             UsageLimit(
                 window: window(group: limit.group), model: limit.scope?.model?.displayName, used: limit.percent / 100,
                 resetsAt: try limit.resetsAt.map { text in
+                    // macOS 15 reads the fractional style strictly, so a time without decimals needs the plain one
+                    if let date = try? Date(text, strategy: timestampWithDecimals) { return date }
                     do { return try Date(text, strategy: timestamp) } catch { throw ToolError.notUnderstood(printed) }
                 })
         }

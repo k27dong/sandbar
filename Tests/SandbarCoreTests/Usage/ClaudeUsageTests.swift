@@ -85,6 +85,14 @@ struct ClaudeUsageTests {
         #expect(limits.map(\.resetsAt) == [Date(timeIntervalSince1970: 1_794_780_000)])
     }
 
+    @Test func aResetThatIsNoTimeIsNotUnderstood() {
+        let limit = Self.weeklyAll.replacing(#""2026-11-15T22:00:00.323361+00:00""#, with: #""next Tuesday""#)
+        let printed = Self.output(limits: [limit], extraUsage: Self.noExtraUsage)
+        #expect(throws: ToolError.notUnderstood(String(decoding: printed, as: UTF8.self))) {
+            try ClaudeUsage.limits(inReport: printed)
+        }
+    }
+
     @Test func aShareAboveTheWholeIsKept() throws {
         let limit = Self.weeklyAll.replacing(#""percent": 37"#, with: #""percent": 104"#)
         let limits = try ClaudeUsage.limits(inReport: Self.output(limits: [limit], extraUsage: Self.noExtraUsage))
