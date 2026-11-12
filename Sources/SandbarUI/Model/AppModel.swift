@@ -37,7 +37,7 @@ import os
 
     package internal(set) var snapshot: Snapshot
     package internal(set) var accounts: [Account]
-    package private(set) var accountsNote: String?
+    package internal(set) var accountsNote: String?
     package private(set) var toolErrors: [Tool: any Error] = [:]
     package internal(set) var gitHub: GitHubConnection
     package internal(set) var gitHubNote: String?

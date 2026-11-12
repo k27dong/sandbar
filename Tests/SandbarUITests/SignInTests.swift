@@ -1106,6 +1106,28 @@ actor Maker {
         }
     }
 
+    @Test func aSaveThatFailsSaysSoUntilASaveWorks() async throws {
+        try await withHome { home in
+            let model = home.model(findTool: Fake.found(["claude": try Fake.claude(ownSignIn: true)]))
+            model.start()
+            try FileManager.default.createDirectory(
+                at: home.files.accounts.appending(path: "a folder where the file belongs"),
+                withIntermediateDirectories: true)
+
+            try await ends("the sign-in on this Mac is taken") { await model.useExisting(.claude) }
+            #expect(model.accountsNote == "Accounts could not be saved.")
+            #expect(model.accounts.map(\.title) == ["Acme Robotics (Enterprise)"])
+            try await eventually("the account is read in this run all the same") {
+                model.snapshot.accounts.first?.limits.value.map(\.label) == ["Week"]
+            }
+
+            try FileManager.default.removeItem(at: home.files.accounts)
+            model.rename(try #require(model.accounts.first), to: "Work")
+            #expect(model.accountsNote == nil)
+            #expect(try Account.load(from: home.files.accounts).map(\.name) == ["Work"])
+        }
+    }
+
     @Test func anUnreadableAccountsFileIsMovedAsideWithItsNote() async throws {
         try await withHome { home in
             try Data("an older unreadable file".utf8).write(to: home.files.unreadableAccounts)
@@ -1121,6 +1143,7 @@ actor Maker {
 
             try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             #expect(try Account.load(from: home.files.accounts).map(\.title) == ["Acme Robotics (Enterprise)"])
+            #expect(model.accountsNote == "Saved accounts could not be read.")
         }
     }
 

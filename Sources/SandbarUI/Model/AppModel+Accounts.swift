@@ -16,6 +16,7 @@ extension AppModel {
         case unreadable(String)
     }
     package static let gitHubClientID = "Ov23lia2Qs525DenxnCA"
+    private static let notSavedNote = "Accounts could not be saved."
 
     package var isSetUp: Bool { isFixed || preferences.isSetUp }
     package var isSigningIn: Bool { runningSignIn != nil }
@@ -265,7 +266,9 @@ extension AppModel {
     private func accountsChanged() {
         do {
             try Account.save(accounts, to: files.accounts)
+            if accountsNote == Self.notSavedNote { accountsNote = nil }
         } catch {
+            accountsNote = Self.notSavedNote
             Self.log.error("The accounts were not saved: \(String(describing: error), privacy: .public)")
         }
         findTools()
