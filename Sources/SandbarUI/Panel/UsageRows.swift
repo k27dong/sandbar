@@ -89,5 +89,6 @@ private struct UsageRow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 24)
+        .contentShape(.rect)
     }
 }
