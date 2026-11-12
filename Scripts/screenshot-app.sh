@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+output="$1"
+
+folder="$(mktemp -d)"
+cp -R "$(dirname "$0")/../build/Sandbar.app" "$folder"
+"$folder/Sandbar.app/Contents/MacOS/Sandbar" &
+program=$!
+trap 'kill "$program"; rm -rf "$folder"' EXIT
+
+click() {
+    osascript -e 'with timeout of 10 seconds' \
+        -e "tell application \"System Events\" to click menu bar item 1 of menu bar $1 of (first process whose unix id is $program)" \
+        -e 'end timeout' >/dev/null
+}
+deadline=$(($(date +%s) + 30))
+until click 2 || click 1; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+        echo "System Events could not click Sandbar's menu bar item" >&2
+        exit 1
+    fi
+    sleep 1
+done
+
+sleep 1
+mkdir -p "$(dirname "$output")"
+screencapture -x "$output"
