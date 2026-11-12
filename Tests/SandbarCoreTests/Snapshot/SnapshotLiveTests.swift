@@ -33,6 +33,18 @@ struct SnapshotLiveTests {
         }
     }
 
+    func printCounts(_ snapshot: Snapshot) {
+        let lists = snapshot.pullRequests
+        Swift.print(
+            "pull requests: mine \(lists.value.mine.count), review requests \(lists.value.reviewRequests.count),",
+            "trouble \(lists.trouble?.rawValue ?? "none")")
+        for entry in snapshot.accounts {
+            Swift.print(
+                "account \(entry.account.tool): trouble \(entry.limits.trouble?.rawValue ?? "none"), rows",
+                entry.limits.value.map(\.label))
+        }
+    }
+
     func removeFolder() {
         #expect(throws: Never.self) { try FileManager.default.removeItem(at: folder) }
     }
@@ -74,6 +86,70 @@ struct SnapshotLiveTests {
         var rows = snapshot.accounts.map(\.limits.value.count)
         rows.insert(0, at: 1)
         #expect(again.accounts.map(\.limits.value.count) == rows)
+    }
+
+    @Test(.enabled(if: !networkIsCut)) func aClaudeToolThatIsNotThereIsMissingAndCodexStillReads() async throws {
+        var tools = tools
+        tools[.claude] = folder.appending(path: "claude")
+        let snapshot = await Snapshot.empty.refreshed(
+            .limits, github: github, accounts: Self.ownSignIns, tools: tools, now: .now)
+        printCounts(snapshot)
+        let troubles = snapshot.accounts.map(\.limits.trouble)
+        try #require(troubles == [.toolMissing, nil])
+        let detail = snapshot.accounts[0].limits.detail
+        #expect(detail == "Claude Code was not found.")
+        let codexRows = snapshot.accounts[1].limits.value.count
+        #expect(codexRows > 0)
+        let pullRequestsUntouched = snapshot.pullRequests == Snapshot.empty.pullRequests
+        #expect(pullRequestsUntouched)
+    }
+
+    @Test(.enabled(if: !networkIsCut)) func aWrongGitHubTokenIsSignedOutAndKeepsTheListsRead() async throws {
+        let readAt = Date.now
+        let first = await Snapshot.empty.refreshed(
+            .pullRequests, github: github, accounts: [], tools: tools, now: readAt)
+        printCounts(first)
+        let firstTrouble = first.pullRequests.trouble
+        try #require(firstTrouble == nil)
+
+        let wrongToken = GitHubClient(token: { "not-a-real-token" })
+        let askedAt = readAt + 60
+        let second = await first.refreshed(.pullRequests, github: wrongToken, accounts: [], tools: tools, now: askedAt)
+        printCounts(second)
+        let secondTrouble = second.pullRequests.trouble
+        #expect(secondTrouble == .signedOut)
+        let listsKept = second.pullRequests.value == first.pullRequests.value
+        #expect(listsKept)  // a comparison inside #expect would print real titles when it fails
+        #expect(second.pullRequests.readAt == readAt)
+        #expect(second.pullRequests.askedAt == askedAt)
+    }
+
+    @Test(.enabled(if: !networkIsCut)) func twoRefreshesInARowChangeNothingAndBannerNothing() async throws {
+        let first = await Snapshot.empty.refreshed(
+            .all, github: github, accounts: Self.ownSignIns, tools: tools, now: .now)
+        printCounts(first)
+        let second = await first.refreshed(.all, github: github, accounts: Self.ownSignIns, tools: tools, now: .now)
+        printCounts(second)
+        let troubles = [first, second].flatMap { [$0.pullRequests.trouble] + $0.accounts.map(\.limits.trouble) }
+        try #require(troubles == [nil, nil, nil, nil, nil, nil])
+
+        var everything = NotificationSettings()
+        everything.reviewRequested = true
+        everything.limitNear = true
+        let now = Date.now
+        let changes = second.changes(since: first, in: .all)
+        let banners = Banner.now(for: changes, settings: everything, at: now)
+        let resetsBefore = Banner.resets(in: first, settings: everything, now: now)
+        let resetsAfter = Banner.resets(in: second, settings: everything, now: now)
+        let differingResets =
+            resetsAfter.filter { !resetsBefore.contains($0) }.count
+            + resetsBefore.filter { !resetsAfter.contains($0) }.count
+        Swift.print("changes \(changes.count), banners \(banners.count), differing reset banners \(differingResets)")
+        let changeCount = changes.count  // fails honestly if a real pull request changes between the two reads
+        #expect(changeCount == 0)
+        let bannerCount = banners.count
+        #expect(bannerCount == 0)
+        #expect(differingResets == 0)
     }
 
     @Test(.enabled(if: networkIsCut)) func withoutANetworkThePullRequestsAreOfflineAndTheSavedCopyReadsWhole()
