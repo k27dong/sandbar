@@ -3,11 +3,16 @@ import SwiftUI
 import Testing
 
 @MainActor enum Pictures {
+    private static let scale: CGFloat = 2
+
+    private final class Window: NSWindow {
+        override var backingScaleFactor: CGFloat { Pictures.scale }  // text is drawn at the window's scale
+    }
+
     static func draw(_ view: some View, named name: String, dark: Bool = false) throws -> URL {
-        let scale: CGFloat = 2
         let host = NSHostingView(
             rootView: view.background(Color(nsColor: .windowBackgroundColor)).environment(\.displayScale, scale))
-        let window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+        let window = Window(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
         window.setContentSize(host.fittingSize)
