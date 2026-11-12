@@ -26,6 +26,7 @@ struct GitHubClientTests {
         #expect(request.url == URL(string: "https://api.github.com/graphql"))
         #expect(request.value(forHTTPHeaderField: "Authorization") == "bearer T")
         #expect(request.value(forHTTPHeaderField: "User-Agent") == "Sandbar")
+        #expect(request.timeoutInterval == 20)
     }
 
     @Test func unauthorizedIsSignedOut() async throws {
@@ -118,7 +119,7 @@ struct GitHubClientTests {
             GitHubAnswer.list(mine: [GitHubAnswer.node(1)], mineCursor: Self.cursor),
             GitHubAnswer.list(mine: [GitHubAnswer.node(2)], mineCursor: Self.cursor, reviewRequests: nil)
         )
-        await #expect(throws: GitHubError.self) {
+        await #expect(throws: GitHubError.notUnderstood("the mine search gave the cursor \(Self.cursor) twice")) {
             try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
         }
         #expect(await exchange.requests.count == 2)
@@ -130,7 +131,7 @@ struct GitHubClientTests {
                 mine: [GitHubAnswer.node(page)], mineCursor: "cursor-\(page)", reviewRequests: page == 1 ? [] : nil)
         }
         let exchange = GitHubExchange(pages.map { (200, $0) })
-        await #expect(throws: GitHubError.self) {
+        await #expect(throws: GitHubError.notUnderstood("the mine search has more than 10 pages")) {
             try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
         }
         #expect(await exchange.requests.count == 10)
@@ -153,8 +154,12 @@ struct GitHubClientTests {
 
     @Test func aMissingSearchIsNotUnderstood() async throws {
         let exchange = GitHubExchange(GitHubAnswer.list(mine: [GitHubAnswer.node(1)], reviewRequests: nil))
-        await #expect(throws: GitHubError.self) {
+        let error = await #expect(throws: GitHubError.self) {
             try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
+        }
+        guard case .notUnderstood = error else {
+            Issue.record("expected notUnderstood, got \(String(describing: error))")
+            return
         }
     }
 

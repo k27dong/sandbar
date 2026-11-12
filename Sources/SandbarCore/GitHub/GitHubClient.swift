@@ -33,6 +33,7 @@ package struct GitHubClient: Sendable {
     }
 
     private static let address = URL(string: "https://api.github.com/graphql")!
+    private static let requestTimeout: TimeInterval = 20  // a stalled network must not hold a refresh for a minute
     private static let pagesPerSearch = 10  // GitHub's search gives at most 1,000 results
     private static let singleSignOnOrganization = "an organization that requires single sign-on"
     private static let restrictingOrganization = "an organization that restricts access"
@@ -113,6 +114,7 @@ package struct GitHubClient: Sendable {
     static func answer(to request: URLRequest, send: Send) async throws -> Data {
         var request = request
         request.setValue("Sandbar", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = requestTimeout
         let data: Data
         let response: HTTPURLResponse
         do {

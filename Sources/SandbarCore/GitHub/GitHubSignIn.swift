@@ -85,8 +85,8 @@ package struct GitHubSignIn: Sendable {
         }
     }
 
-    package static func ghToken(gh: URL) async throws -> String {
-        let output = try await Command.run(gh, ["auth", "token"])
+    package static func ghToken(gh: URL, timeout: Duration = .seconds(10)) async throws -> String {
+        let output = try await Command.run(gh, ["auth", "token"], timeout: timeout)
         let token = String(decoding: output.standardOutput, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard output.status == 0, !token.isEmpty else { throw GitHubError.signedOut }

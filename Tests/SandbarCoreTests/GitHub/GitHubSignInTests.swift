@@ -35,6 +35,7 @@ struct GitHubSignInTests {
         let request = try #require(await exchange.requests.first)
         #expect(request.httpMethod == "POST")
         #expect(request.url == URL(string: "https://github.com/login/device/code"))
+        #expect(request.timeoutInterval == 20)
         #expect(try await exchange.form(0) == ["client_id": "Iv1.made0up", "scope": "repo"])
     }
 
@@ -46,6 +47,7 @@ struct GitHubSignInTests {
         #expect(await sleeps.durations == [.seconds(5), .seconds(5)])
         let request = await exchange.requests[1]
         #expect(request.url == URL(string: "https://github.com/login/oauth/access_token"))
+        #expect(request.timeoutInterval == 20)
         #expect(
             try await exchange.form(1) == [
                 "client_id": "Iv1.made0up", "device_code": "3584d83530557fdd1f46af8289938c8ef79f9dc5",
@@ -54,10 +56,11 @@ struct GitHubSignInTests {
     }
 
     @Test func slowDownAddsFiveSeconds() async throws {
-        let exchange = GitHubExchange(Self.deviceCode, #"{"error": "slow_down"}"#, Self.token)
+        let slowDown = #"{"error": "slow_down"}"#
+        let exchange = GitHubExchange(Self.deviceCode, slowDown, slowDown, Self.token)
         let signIn = signIn(exchange)
         _ = try await signIn.token(for: try await signIn.start())
-        #expect(await sleeps.durations == [.seconds(10)])
+        #expect(await sleeps.durations == [.seconds(10), .seconds(15)])
     }
 
     @Test(arguments: failures) func endedSignInThrows(answer: String, failure: GitHubSignIn.Failure) async throws {
@@ -87,6 +90,15 @@ struct GitHubSignInTests {
     @Test func ghTokenIsTrimmed() async throws {
         let gh = try FakeTool.script(named: "gh", #"[ "$1 $2" = "auth token" ] && printf 'tok\n'"#)
         #expect(try await GitHubSignIn.ghToken(gh: gh) == "tok")
+    }
+
+    @Test func ghThatHangsTimesOut() async throws {
+        let gh = try FakeTool.script(named: "gh", "sleep 30")
+        let start = ContinuousClock.now
+        await #expect(throws: ToolError.timedOut) {
+            try await GitHubSignIn.ghToken(gh: gh, timeout: .milliseconds(300))
+        }
+        #expect(ContinuousClock.now - start < .seconds(4))
     }
 
     @Test func ghExitingOneThrows() async throws {
