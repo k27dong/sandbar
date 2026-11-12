@@ -1,4 +1,5 @@
-import Foundation
+import AppKit
+import Carbon.HIToolbox
 import SandbarCore
 import SandbarUI
 import Testing
@@ -90,6 +91,42 @@ import Testing
             model.moveSelection(by: 1)
             model.openSelection()
             #expect(opened.addresses.map(\.absoluteString) == ["https://github.com/acme/api/pull/6821"])
+            #expect(closes == 1)
+        }
+    }
+
+    @Test func aKeyPressIsThePanelsOnlyInThePanelsOwnWindow() async throws {
+        try await withHome { home in
+            let model = home.model(snapshot: stage("day"))
+            let panel = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+            let settings = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+            try #require(panel.windowNumber != settings.windowNumber)
+            var closes = 0
+            let passedOn = { (key: Int, window: NSWindow, modifiers: NSEvent.ModifierFlags) in
+                let press = try #require(
+                    NSEvent.keyEvent(
+                        with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+                        windowNumber: window.windowNumber, context: nil, characters: "",
+                        charactersIgnoringModifiers: "", isARepeat: false, keyCode: UInt16(key)))
+                return PanelWindow.keyDown(press, in: panel, showing: model) { closes += 1 } === press
+            }
+
+            for key in [kVK_DownArrow, kVK_UpArrow, kVK_Return, kVK_Escape] {
+                let typedIntoSettings = try passedOn(key, settings, [])
+                #expect(typedIntoSettings, "key \(key)")
+            }
+            #expect(model.selection == nil)
+            #expect(closes == 0)
+
+            let down = try passedOn(kVK_DownArrow, panel, [])
+            #expect(!down)
+            #expect(model.selection == row(6821, in: "acme/api"))
+            let commandDown = try passedOn(kVK_DownArrow, panel, .command)
+            let letter = try passedOn(kVK_ANSI_A, panel, [])
+            #expect(commandDown && letter)
+            #expect(model.selection == row(6821, in: "acme/api"))
+            let escape = try passedOn(kVK_Escape, panel, [])
+            #expect(!escape)
             #expect(closes == 1)
         }
     }
