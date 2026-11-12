@@ -51,6 +51,13 @@ import os
     package var openSettings: (SettingsWindow.Pane?) -> Void = { _ in }
     package private(set) var launchesAtLogin: Bool
     package private(set) var launchAtLoginNote: String?
+    package var notificationsPaused: Bool {
+        get { preferences.notificationsPaused }
+        set {
+            preferences.notificationsPaused = newValue
+            Task { await scheduleResets() }
+        }
+    }
     package var isRecordingShortcut = false
     package var shortcutIsRefused = false
     package var hasNetwork = true {
@@ -66,6 +73,7 @@ import os
     let download: ToolDownload
     let openAddress: (URL) -> Void
     let loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void)
+    let banners: BannerDelivery
     var accountAction: (task: Task<Void, Never>, kind: AccountAction)?
     var claudeSignIn: Command.Running?
     var signInAddress: URL?
@@ -81,6 +89,8 @@ import os
     @ObservationIgnored private var toolLookup: Task<Void, Never>?
     @ObservationIgnored private var signInLookup: Task<Void, Never>?
     private var owed: Snapshot.Parts = []
+    var pullRequestsReadOnce = false  // until the first good answer of this run, what is shown is old news
+    private var accountsReadOnce: Set<Account.ID> = []
     private var refreshesAsked = 0
     private var isReading = false
     private var copiesCheckedAt: Date?
@@ -99,7 +109,8 @@ import os
         keychain: Keychain.Item = Keychain.Item(named: "github"),
         toolDownload: (URL) -> ToolDownload = ToolDownload.init(folder:),
         openAddress: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) },
-        loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void) = ({ false }, { _ in })
+        loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void) = ({ false }, { _ in }),
+        banners: BannerDelivery = .none
     ) {
         self.snapshot = snapshot
         accounts = snapshot.accounts.map(\.account)
@@ -116,6 +127,7 @@ import os
         download = toolDownload(files.tools)
         self.openAddress = openAddress
         self.loginItem = loginItem
+        self.banners = banners
         launchesAtLogin = loginItem.isOn()
     }
 
@@ -266,9 +278,24 @@ import os
             let github: GitHubClient? =
                 if case .connected(_, let throughGh) = connection { client(throughGh: throughGh) } else { nil }
             var read = await snapshot.refreshed(parts, github: github, accounts: accounts, tools: tools, now: now)
-            if gitHub != connection { read.pullRequests = snapshot.pullRequests }  // signed out or in meanwhile
+            let isSameGitHub = gitHub == connection
+            if !isSameGitHub { read.pullRequests = snapshot.pullRequests }  // signed out or in meanwhile
+            var old = snapshot
+            old.accounts.removeAll { !accountsReadOnce.contains($0.id) }  // the core is silent about one it lacks
+            let changes = read.changes(since: old, in: pullRequestsReadOnce ? parts : parts.subtracting(.pullRequests))
+            if parts.contains(.pullRequests), isSameGitHub, read.pullRequests.trouble == nil {
+                pullRequestsReadOnce = true
+            }
+            if parts.contains(.limits) {
+                accountsReadOnce.formUnion(read.accounts.filter { $0.limits.trouble == nil }.map(\.id))
+            }
             snapshot = read
             saveSnapshot()
+            if !preferences.notificationsPaused {
+                let fresh = Banner.now(for: changes, settings: preferences.notifications, at: now)
+                if !fresh.isEmpty { await banners.deliver(fresh) }
+            }
+            await scheduleResets()
             for tool in fetchedTools {
                 let failed = snapshot.accounts.contains { $0.account.tool == tool && $0.limits.trouble == .failed }
                 if !failed {
@@ -290,6 +317,12 @@ import os
 
     /// True from the moment a refresh is asked for until it has ended, the wait for a tool lookup included.
     package var isRefreshing: Bool { refreshesAsked > 0 }
+
+    private func scheduleResets() async {
+        await banners.schedule(
+            preferences.notificationsPaused
+                ? [] : Banner.resets(in: snapshot, settings: preferences.notifications, now: now))
+    }
 
     private func refreshInBackground(_ parts: Snapshot.Parts) {
         refreshesAsked += 1

@@ -166,7 +166,7 @@ actor GitHubStub {
         send: @escaping GitHubClient.Send = { _ in throw URLError(.notConnectedToInternet) },
         sleep: @escaping @Sendable (Duration) async throws -> Void = { _ in },
         keychain: Keychain.Item? = nil, toolDownload: (URL) -> ToolDownload = Home.noDownload,
-        openAddress: @escaping (URL) -> Void = { _ in }
+        openAddress: @escaping (URL) -> Void = { _ in }, banners: BannerDelivery = .none
     ) -> AppModel {
         let model = AppModel(
             snapshot: snapshot, preferences: Preferences(defaults: defaults), now: AppModelTests.now, files: files,
@@ -179,7 +179,7 @@ actor GitHubStub {
                     if loginItemRefuses { throw Refused() }
                     launchesAtLogin = on
                 }
-            ))
+            ), banners: banners)
         made.append { [weak model] in model }
         return model
     }

@@ -128,6 +128,7 @@ extension AppModel {
         gitHubNote = nil
         forgetKeptSignIn()
         gitHub = .none
+        pullRequestsReadOnce = false
         preferences.gitHubLogin = nil
         preferences.usesGhSignIn = false
         snapshot.pullRequests = Snapshot.empty.pullRequests
@@ -285,6 +286,7 @@ extension AppModel {
         guard !preferences.isSetUp else { return }
         preferences.isSetUp = true
         launchAtLogin(true)
+        Task { await banners.askPermission() }
     }
 
     private func changingAccounts(_ kind: AccountAction, _ work: @escaping () async -> Void) async {
@@ -297,6 +299,7 @@ extension AppModel {
 
     private func connected(as login: String, throughGh: Bool) {
         gitHub = .connected(login: login, throughGh: throughGh)
+        pullRequestsReadOnce = false
         preferences.gitHubLogin = login
         preferences.usesGhSignIn = throughGh
         snapshot.pullRequests.trouble = nil

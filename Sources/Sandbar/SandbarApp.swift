@@ -66,7 +66,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             use(AppModel(showing: URL(filePath: arguments[flag + 1])))
         } else {
-            let model = AppModel(loginItem: ({ LoginItem.isOn }, LoginItem.set))
+            let model = AppModel(
+                loginItem: ({ LoginItem.isOn }, LoginItem.set),
+                banners: .system { [weak self] opens in
+                    guard let self else { return }
+                    switch opens {
+                    case .pullRequest(let address): NSWorkspace.shared.open(address)
+                    case .panel: if !panel.isOpen { togglePanel() }
+                    }
+                })
             use(model)
             model.start()
         }
