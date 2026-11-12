@@ -3,6 +3,10 @@ set -eu
 stage="$1"
 output="$2"
 opening="${3:-click}"
+if [ "$opening" = claude-sign-in ] && [ "${GITHUB_ACTIONS:-}" != true ]; then
+    echo "claude-sign-in runs only on GitHub's runner: it signs in through Sandbar's own folders and takes the clipboard" >&2
+    exit 64
+fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "$stage" = - ]; then set --; else set -- --show "$root/Tests/Stages/$stage.json"; fi
@@ -15,8 +19,10 @@ trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; 
 item() {  # the status item has a menu bar of its own, beside Sandbar's hidden main menu of three
     osascript -e 'with timeout of 10 seconds' \
         -e "tell application \"System Events\" to tell (first process whose unix id is $program)" \
-        -e 'repeat with bar in menu bars' -e 'if (count of menu bar items of bar) is 1 then exit repeat' -e 'end repeat' \
-        -e 'tell menu bar item 1 of bar' \
+        -e 'set itemBar to missing value' \
+        -e 'repeat with bar in menu bars' -e 'if (count of menu bar items of bar) is 1 then set itemBar to contents of bar' \
+        -e 'end repeat' -e 'if itemBar is missing value then error "no menu bar of Sandbar holds its item alone"' \
+        -e 'tell menu bar item 1 of itemBar' \
         -e 'if item 1 of (get position) < 0 then error "not placed in the menu bar yet: a click now opens the panel off screen"' \
         -e "$1" -e 'end tell' -e 'end tell' -e 'end timeout' >/dev/null
 }
