@@ -22,10 +22,6 @@ import Testing
         return drawn
     }
 
-    private func pixels(_ picture: NSBitmapImageRep) throws -> Data {
-        Data(bytes: try #require(picture.bitmapData), count: picture.bytesPerRow * picture.pixelsHigh)
-    }
-
     @Test func everyLimitHasItsRow() async throws {
         for name in ["day", "limit"] {
             for dark in [false, true] {
@@ -50,11 +46,16 @@ import Testing
         var snapshot = stage("day")
         snapshot.accounts[1].limits.trouble = .signedOut
         snapshot.accounts[1].limits.detail = "Signed out."
+        let personal = (3 + 24) * 2
+        let nameColumn = { (picture: NSBitmapImageRep) in
+            (40 * 2..<112 * 2).flatMap { x in (personal..<personal + 48).map { picture.colorAt(x: x, y: $0) } }
+        }
         for dark in [false, true] {
             let plain = try await picture("day", of: stage("day"), dark: dark)
             let dimmed = try await picture("day-trouble", of: snapshot, dark: dark)
             #expect(dimmed.pixelsHigh == plain.pixelsHigh)
-            #expect(try pixels(dimmed) != pixels(plain))
+            #expect(nameColumn(dimmed) == nameColumn(plain), "the name keeps its ink")
+            #expect(dimmed.colorAt(x: 170 * 2, y: personal + 24) != plain.colorAt(x: 170 * 2, y: personal + 24))
         }
     }
 
@@ -66,7 +67,9 @@ import Testing
                 limits: Snapshot.Reading(value: [], readAt: AppModelTests.now))
         ]
         for dark in [false, true] {
-            #expect(try await picture("no-limits", of: snapshot, dark: dark).pixelsHigh == (3 + 24 + 1) * 2)
+            let drawn = try await picture("no-limits", of: snapshot, dark: dark)
+            #expect(drawn.pixelsHigh == (3 + 24 + 1) * 2)
+            #expect(drawn.colorAt(x: 165 * 2, y: 30) == drawn.colorAt(x: 300 * 2, y: 30), "the bar has no fill")
         }
     }
 }
