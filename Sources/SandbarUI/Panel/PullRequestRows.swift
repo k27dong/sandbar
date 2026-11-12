@@ -224,7 +224,6 @@ package func spoken(_ pullRequest: PullRequest, now: Date, time: Preferences.Tim
     sentence(startingWith: pullRequest.stateIcon.spoken, pullRequest, now: now, time: time)
 }
 
-/// A review request says who asked, where its row shows that person's face in place of the state.
 package func spoken(reviewRequest: PullRequest, now: Date, time: Preferences.TimeShown) -> String {
     sentence(startingWith: "Review requested by \(reviewRequest.author.login)", reviewRequest, now: now, time: time)
 }
