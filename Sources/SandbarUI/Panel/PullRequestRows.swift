@@ -67,7 +67,7 @@ private struct StackRows: View {
     var body: some View {
         let topFirst = model.preferences.stackOrder == .topFirst
         let isOpen = model.openStacks.contains(stack.id)
-        let folds = stack.pullRequests.count > 3
+        let folds = stack.shown(isOpen: false).count < stack.pullRequests.count
         let shown = stack.shown(isOpen: isOpen)
         let rows: [PullRequest] = topFirst ? shown.reversed() : shown
         let fold = Button {
@@ -205,8 +205,8 @@ private struct StackLine: View {
     var body: some View {
         Rectangle()
             .fill(isHovered ? Color.white.opacity(0.6) : Color(nsColor: .tertiaryLabelColor))
-            .frame(width: 2)  // the design's 1.5 points at 18.25 fall between pixels; browsers draw these 2 at 18
-            .offset(x: 18)
+            .frame(width: 1.5)
+            .offset(x: 18.25)
     }
 }
 

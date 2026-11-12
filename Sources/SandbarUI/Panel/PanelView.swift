@@ -14,7 +14,7 @@ package struct PanelView: View {
 
     package var body: some View {
         let tone = model.isOffline ? Color.warningText : .secondary
-        let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy  // a mouse, or "Show scroll bars: Always"
+        let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy
         VStack(spacing: 0) {
             ScrollView {
                 PullRequestRows()
