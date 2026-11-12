@@ -40,6 +40,7 @@ package struct ToolDownload: Sendable {
     private static let claudeReleases = URL(string: "https://downloads.claude.ai/claude-code-releases")!
     private static let codexRelease = URL(string: "https://api.github.com/repos/openai/codex/releases/latest")!
     private static let codexProgram = "codex-app-server"
+    private static let copyLifetime: TimeInterval = 14 * 86_400
 
     package init(
         folder: URL,
@@ -83,6 +84,13 @@ package struct ToolDownload: Sendable {
             .reversed()
             .map { place(tool, $0) }
             .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+
+    package func isOld(_ tool: Tool, at now: Date) throws -> Bool {
+        guard let program = try installed(tool) else { return false }
+        let attributes = try FileManager.default.attributesOfItem(atPath: program.path)
+        guard let installedAt = attributes[.modificationDate] as? Date else { throw CocoaError(.fileReadUnknown) }
+        return now.timeIntervalSince(installedAt) >= Self.copyLifetime
     }
 
     package func install(_ tool: Tool, platform: Platform = .current) async throws -> URL {

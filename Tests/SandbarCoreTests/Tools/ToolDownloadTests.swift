@@ -29,6 +29,7 @@ struct ToolDownloadTests {
         (.claude, "1.2.3-../../x"), (.claude, "1.2.3/x"), (.codex, "1.2.3-../../x"), (.codex, "1.2.3/x"),
     ]
     static let wrongChecksumCases: [(tool: Tool, expected: String)] = [(.claude, "aa11"), (.codex, "cc33")]
+    static let ages: [(days: Double, isOld: Bool)] = [(13.99, false), (14, true), (30, true)]
 
     actor Downloads {
         var addresses: [URL] = []
@@ -140,6 +141,17 @@ struct ToolDownloadTests {
         let second = try await stub().install(.claude, platform: .macArm)
         #expect(first == second)
         #expect(await downloads.addresses.count == 1)
+    }
+
+    @Test(arguments: ages) func aCopyIsOldFromItsFourteenthDay(days: Double, isOld: Bool) async throws {
+        let program = try await stub().install(.claude, platform: .macArm)
+        let now = Date(timeIntervalSince1970: 1_794_506_400)
+        try FileManager.default.setAttributes([.modificationDate: now - days * 86_400], ofItemAtPath: program.path)
+        #expect(try stub().isOld(.claude, at: now) == isOld)
+    }
+
+    @Test func aToolWithNoCopyIsNotOld() throws {
+        #expect(try !stub().isOld(.codex, at: .now))
     }
 
     @Test func codexTakesTheAssetForTheMachine() async throws {
