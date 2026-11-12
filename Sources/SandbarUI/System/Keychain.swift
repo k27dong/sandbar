@@ -4,6 +4,18 @@ import Security
 package nonisolated enum Keychain {
     package enum Failure: Error, Equatable { case status(OSStatus) }
 
+    package struct Item: Sendable {
+        package var read: @Sendable () throws -> String?
+        package var write: @Sendable (String) throws -> Void
+        package var delete: @Sendable () throws -> Void
+
+        package init(named name: String) {
+            read = { try Keychain.read(name) }
+            write = { try Keychain.write($0, as: name) }
+            delete = { try Keychain.delete(name) }
+        }
+    }
+
     private static let service = "com.k27dong.sandbar"
 
     package static func read(_ name: String) throws -> String? {

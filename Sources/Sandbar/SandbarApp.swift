@@ -33,13 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             use(AppModel(showing: URL(filePath: arguments[flag + 1])))
         } else {
-            Task {
-                let gh = await ToolLocation.find("gh")
-                let model = AppModel(
-                    github: gh.map { gh in GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }) })
-                use(model)
-                model.start()
-            }
+            let model = AppModel()
+            use(model)
+            model.start()
         }
     }
 

@@ -19,7 +19,7 @@ func stage(_ name: String) -> Snapshot {
     ]
 
     private func model(_ snapshot: Snapshot, _ defaults: UserDefaults) -> AppModel {
-        AppModel(snapshot: snapshot, preferences: Preferences(defaults: defaults), now: AppModelTests.now)
+        AppModel(snapshot: snapshot, preferences: afterSetup(defaults), now: AppModelTests.now)
     }
 
     private func picture(
