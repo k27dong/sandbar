@@ -58,15 +58,26 @@ package struct Account: Codable, Hashable, Identifiable, Sendable {
 
     package func forget(tool program: URL, profiles: URL) async throws {
         guard let profile else { return }  // the user's own sign-in is theirs to keep
+        var entry = stat()
         guard
-            profile.standardizedFileURL.deletingLastPathComponent().resolvingSymlinksInPath().path
-                == profiles.resolvingSymlinksInPath().path
+            lstat(profile.path, &entry) == 0,
+            entry.st_mode & S_IFMT == S_IFDIR,  // a symlink is refused, never followed
+            let folder = Self.realPath(of: profile), let realProfiles = Self.realPath(of: profiles),
+            URL(filePath: folder).deletingLastPathComponent().path == realProfiles
         else { throw Misplaced.profile(profile) }
+        var checked = self
+        checked.profile = URL(filePath: folder, directoryHint: .isDirectory)  // what was checked is what is touched
         switch tool {
-        case .claude: try await ClaudeSignIn.signOut(tool: program, environment: environment)
-        case .codex: try await CodexSignIn.signOut(tool: program, environment: environment)
+        case .claude: try await ClaudeSignIn.signOut(tool: program, environment: checked.environment)
+        case .codex: try await CodexSignIn.signOut(tool: program, environment: checked.environment)
         }
-        try FileManager.default.removeItem(at: profile)
+        try FileManager.default.removeItem(atPath: folder)
+    }
+
+    private static func realPath(of url: URL) -> String? {
+        guard let real = realpath(url.path, nil) else { return nil }
+        defer { free(real) }
+        return String(cString: real)
     }
 }
 
