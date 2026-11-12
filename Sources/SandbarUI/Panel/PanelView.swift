@@ -18,6 +18,7 @@ package struct PanelView: View {
             ScrollView {
                 PullRequestRows()
             }
+            .scrollIndicators(.never)  // a bar that takes room would move the rows out of line with the footer
             ThinLine()
             HStack(spacing: 8) {
                 Button {

@@ -40,15 +40,14 @@ struct PullRequestRows: View {
                     .padding(.horizontal, 10)
             }
             ForEach(Array(list.mine.enumerated()), id: \.element.id) { index, entry in
-                let startsTheList = index == 0 && list.reviewRequests.isEmpty
-                let touchesAStack = isStack[index] || index > 0 && isStack[index - 1]
+                let besideAStack = index > 0 && (isStack[index] || isStack[index - 1])
                 Group {
                     switch entry {
                     case .single(let pullRequest): PullRequestRow(pullRequest: pullRequest, columns: columns)
                     case .stack(let stack): StackRows(stack: stack, columns: columns)
                     }
                 }
-                .padding(.top, touchesAStack && !startsTheList ? 3 : 0)
+                .padding(.top, besideAStack ? 3 : 0)
                 .padding(.bottom, isStack[index] && index == isStack.count - 1 ? 3 : 0)
             }
         }
@@ -188,6 +187,8 @@ private struct PullRequestRow: View {
             .background(isHovered ? Color.accentColor : .clear, in: .rect(cornerRadius: 8))
             .overlay(alignment: .topLeading) {
                 if joinedAbove { StackLine(isHovered: isHovered).frame(height: 4) }
+            }
+            .overlay(alignment: .topLeading) {
                 if joinedBelow { StackLine(isHovered: isHovered).padding(.top, 22) }
             }
             .contentShape(.rect)

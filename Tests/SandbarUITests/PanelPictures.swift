@@ -11,7 +11,9 @@ func stage(_ name: String) -> Snapshot {
 }
 
 @Suite(.serialized) struct PanelPictures {
-    nonisolated static let stages = ["day", "states", "many", "offline", "awkward"]
+    nonisolated static let stages: [(name: String, points: Int)] = [
+        ("day", 299), ("states", 377), ("many", 656), ("offline", 299), ("awkward", 163),
+    ]
 
     private func model(_ snapshot: Snapshot, _ defaults: UserDefaults) -> AppModel {
         AppModel(snapshot: snapshot, preferences: Preferences(defaults: defaults), now: AppModelTests.now)
@@ -33,10 +35,11 @@ func stage(_ name: String) -> Snapshot {
         return model
     }
 
-    @Test(arguments: stages) func everyStageDraws(name: String) async throws {
+    @Test(arguments: stages) func everyStageIsAsTallAsInTheDesign(design: (name: String, points: Int)) async throws {
         try await withDefaults { defaults in
             for dark in [false, true] {
-                _ = try picture(name, of: model(stage(name), defaults), dark: dark)
+                let picture = try picture(design.name, of: model(stage(design.name), defaults), dark: dark)
+                #expect(picture.pixelsHigh == design.points * 2)
             }
         }
     }
