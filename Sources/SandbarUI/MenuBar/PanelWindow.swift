@@ -97,7 +97,8 @@ package final class PanelWindow {
     }
 
     @objc private func applicationActivated(_ notification: Notification) {
-        let pressOnItem = NSEvent.pressedMouseButtons != 0 && itemWindow?.frame.contains(NSEvent.mouseLocation) == true
+        let leftButtonDown = NSEvent.pressedMouseButtons & 1 != 0
+        let pressOnItem = leftButtonDown && itemWindow?.frame.contains(NSEvent.mouseLocation) == true
         if !pressOnItem { close() }  // on macOS 27 a press on the item can make another app active; its action closes
     }
 }
