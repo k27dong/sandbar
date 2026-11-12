@@ -161,6 +161,7 @@ import Testing
                 model.signInStep[.codex] == .waitingForBrowser && !opened.addresses.isEmpty
             }
             #expect(model.isSigningIn)
+            #expect(model.isChangingAccounts)
             #expect(opened.addresses == [Fake.codexAddress])
             #expect(model.accounts.isEmpty)
             let profile = try #require(try entries(of: home.files.profiles).first)
@@ -321,6 +322,36 @@ import Testing
         }
     }
 
+    @Test func endingASignInWaitsUntilItsProgramHasEnded() async throws {
+        try await withHome { home in
+            let runsOn = try FakeTool.script(
+                named: "claude",
+                #"""
+                [ "$*" = "auth login" ] || exit 1
+                echo $$ > "$(dirname "$0")/pid"
+                trap 'sleep 0.3; exit 1' TERM
+                sleep 15 &
+                wait $!
+                """#)
+            let model = home.model(findTool: Fake.found(["claude": runsOn]))
+            model.start()
+            Task { await model.addAccount(.claude) }
+            var program: Int32?
+            try await eventually("the sign-in's program runs") {
+                program = (try? String(contentsOf: Fake.beside(runsOn, "pid"), encoding: .utf8))
+                    .flatMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                return program != nil && model.signInStep[.claude] == .waitingForBrowser
+            }
+
+            try await ends("the sign-in is ended") { await model.endSignIn() }
+            let hasEnded = kill(try #require(program), 0) == -1 && errno == ESRCH
+            #expect(hasEnded)
+            #expect(try entries(of: home.files.profiles).isEmpty)
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+            #expect(model.signInStep[.claude] == .idle)
+        }
+    }
+
     @Test func oneSignInRunsAtATime() async throws {
         try await withHome(fresh: true) { home in
             let github = GitHubStub()
@@ -417,6 +448,67 @@ import Testing
             #expect(model.signInStep[.codex] == .idle)
             #expect(!FileManager.default.fileExists(atPath: try #require(added.profile).path))
             #expect(try Account.load(from: home.files.accounts).isEmpty)
+        }
+    }
+
+    @Test func removingDoesNothingWhileASignInRuns() async throws {
+        try await withHome { home in
+            let added = Account(
+                tool: .codex, name: "Work", plan: "Team", profile: try Account.makeProfile(in: home.files.profiles))
+            try Account.save([added], to: home.files.accounts)
+            let codex = try Fake.codex()
+            let model = home.model(findTool: Fake.found(["codex": codex]))
+            model.start()
+            try await eventually("the account is read") { model.snapshot.accounts.count == 1 }
+            Task { await model.addAccount(.codex) }
+            try await eventually("the browser is waited for") { model.signInStep[.codex] == .waitingForBrowser }
+
+            try await ends("the remove is turned away") { await model.remove(added) }
+            #expect(model.accounts == [added])
+            #expect(model.signInStep[.codex] == .waitingForBrowser)
+            #expect(FileManager.default.fileExists(atPath: try #require(added.profile).path))
+            #expect(!FileManager.default.fileExists(atPath: Fake.beside(codex, "signed-out").path))
+
+            model.cancelSignIn(.codex)
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+            #expect(model.accounts == [added])
+        }
+    }
+
+    @Test func aSignInAskedForWhileARemoveWaitsDoesNotStart() async throws {
+        try await withHome { home in
+            let added = Account(
+                tool: .claude, name: "Work", plan: "Enterprise",
+                profile: try Account.makeProfile(in: home.files.profiles))
+            try Account.save([added], to: home.files.accounts)
+            let slow = try FakeTool.script(
+                named: "claude",
+                #"""
+                case "$*" in
+                  "auth logout") touch "$(dirname "$0")/signing-out"; sleep 0.3; echo refused >&2; exit 1 ;;
+                  "auth status") echo '{"loggedIn": false}'; exit 1 ;;
+                esac
+                """#)
+            let model = home.model(findTool: Fake.found(["claude": slow]))
+            model.start()
+            try await eventually("the account is read") { model.snapshot.accounts.count == 1 }
+            try await home.settled()
+
+            Task { await model.remove(added) }
+            try await eventually("the tool is signing out") {
+                FileManager.default.fileExists(atPath: Fake.beside(slow, "signing-out").path)
+            }
+            #expect(model.isChangingAccounts)
+            #expect(!model.isSigningIn, "a remove is no sign-in")
+
+            try await ends("the sign-in is turned away at once") { await model.addAccount(.claude) }
+            try await ends("there is no sign-in to end") { await model.endSignIn() }
+            #expect(model.signInStep[.claude] == .idle)
+            #expect(try entries(of: home.files.profiles).count == 1)
+
+            try await eventually("the remove ends") { !model.isChangingAccounts }
+            #expect(model.signInStep[.claude] == .failed("refused"), "written over nothing")
+            #expect(model.accounts == [added])
         }
     }
 

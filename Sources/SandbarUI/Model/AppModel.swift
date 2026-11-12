@@ -62,7 +62,7 @@ import os
     let keychain: Keychain.Item
     let download: ToolDownload
     let openAddress: (URL) -> Void
-    var runningSignIn: Task<Void, Never>?
+    var accountAction: (task: Task<Void, Never>, kind: AccountAction)?
     var claudeSignIn: Command.Running?
     var signInAddress: URL?
     private(set) var tools: [Tool: URL] = [:]

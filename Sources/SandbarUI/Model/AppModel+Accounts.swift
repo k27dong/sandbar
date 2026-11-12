@@ -15,11 +15,13 @@ extension AppModel {
         case usable, absent
         case unreadable(String)
     }
+    enum AccountAction { case gitHubSignIn, toolSignIn, removal }
     package static let gitHubClientID = "Ov23lia2Qs525DenxnCA"
     private static let notSavedNote = "Accounts could not be saved."
 
     package var isSetUp: Bool { isFixed || preferences.isSetUp }
-    package var isSigningIn: Bool { runningSignIn != nil }
+    package var isChangingAccounts: Bool { accountAction != nil }
+    package var isSigningIn: Bool { accountAction.map { $0.kind != .removal } ?? false }
 
     package var needsGitHubSignIn: Bool {
         guard !isFixed else { return false }
@@ -39,7 +41,7 @@ extension AppModel {
     }
 
     package func connectGitHub() async {
-        await signingIn { [self] in
+        await changingAccounts(.gitHubSignIn) { [self] in
             let before = gitHub
             gitHubNote = nil
             isWaitingForGitHub = false
@@ -74,11 +76,11 @@ extension AppModel {
 
     package func cancelGitHubSignIn() {
         guard case .code = gitHub else { return }
-        runningSignIn?.cancel()
+        accountAction?.task.cancel()
     }
 
     package func useGhSignIn() async {
-        await signingIn { [self] in
+        await changingAccounts(.gitHubSignIn) { [self] in
             gitHubNote = nil
             await toolLookupsEnded()
             do {
@@ -108,7 +110,7 @@ extension AppModel {
     }
 
     package func useExisting(_ tool: Tool) async {
-        await signingIn { [self] in
+        await changingAccounts(.toolSignIn) { [self] in
             if keepsUnreadableAccounts, let accountsNote {
                 signInStep[tool] = .failed(accountsNote)
                 return
@@ -125,7 +127,7 @@ extension AppModel {
     }
 
     package func addAccount(_ tool: Tool) async {
-        await signingIn { [self] in
+        await changingAccounts(.toolSignIn) { [self] in
             if keepsUnreadableAccounts, let accountsNote {
                 signInStep[tool] = .failed(accountsNote)
                 return
@@ -202,7 +204,14 @@ extension AppModel {
 
     package func cancelSignIn(_ tool: Tool) {
         guard signInStep[tool] == .fetching || signInStep[tool] == .waitingForBrowser else { return }
-        runningSignIn?.cancel()
+        accountAction?.task.cancel()
+    }
+
+    /// Cancels the running sign-in and returns once its program has ended and its new profile folder is gone.
+    package func endSignIn() async {
+        guard isSigningIn else { return }
+        accountAction?.task.cancel()
+        await accountAction?.task.value
     }
 
     package func rename(_ account: Account, to name: String) {
@@ -212,14 +221,16 @@ extension AppModel {
     }
 
     package func remove(_ account: Account) async {
-        guard accounts.contains(where: { $0.id == account.id }) else { return }
-        await toolLookupsEnded()
-        do {
-            try await account.forget(tool: tools[account.tool], profiles: files.profiles)
-            accounts.removeAll { $0.id == account.id }
-            accountsChanged()
-        } catch {
-            signInStep[account.tool] = .failed(Snapshot.detail(of: error, tool: account.tool))
+        await changingAccounts(.removal) { [self] in
+            guard accounts.contains(where: { $0.id == account.id }) else { return }
+            await toolLookupsEnded()
+            do {
+                try await account.forget(tool: tools[account.tool], profiles: files.profiles)
+                accounts.removeAll { $0.id == account.id }
+                accountsChanged()
+            } catch {
+                signInStep[account.tool] = .failed(Snapshot.detail(of: error, tool: account.tool))
+            }
         }
     }
 
@@ -227,12 +238,12 @@ extension AppModel {
         preferences.isSetUp = true
     }
 
-    private func signingIn(_ work: @escaping () async -> Void) async {
-        guard runningSignIn == nil else { return }
+    private func changingAccounts(_ kind: AccountAction, _ work: @escaping () async -> Void) async {
+        guard accountAction == nil else { return }
         let task = Task { await work() }
-        runningSignIn = task
+        accountAction = (task, kind)
         await task.value
-        runningSignIn = nil
+        accountAction = nil
     }
 
     private func connected(as login: String, throughGh: Bool) {

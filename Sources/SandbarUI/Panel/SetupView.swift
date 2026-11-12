@@ -212,8 +212,13 @@ private struct SignInButton: View {
             Task { await action() }
         }
         .buttonStyle(RowButton(isPrimary: isPrimary))
-        .disabled(model.isSigningIn)
-        .opacity(model.isSigningIn ? 0.4 : 1)
+        .unavailable(model.isChangingAccounts)
+    }
+}
+
+extension View {
+    fileprivate func unavailable(_ isUnavailable: Bool) -> some View {
+        disabled(isUnavailable).opacity(isUnavailable ? 0.4 : 1)
     }
 }
 

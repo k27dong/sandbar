@@ -39,6 +39,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let model, model.isSigningIn else { return .terminateNow }
+        Task {
+            await model.endSignIn()  // a tool's sign-in waits for a browser with no end, and nobody else would end it
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     private func togglePanel() {  // on its own: in the lazy item's closure Swift warns of an isolated conformance
         guard let model, let button = statusItem.button else { return }
         panel.toggle(under: button) { maxHeight in PanelView(maxHeight: maxHeight).environment(model) }
