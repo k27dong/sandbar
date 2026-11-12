@@ -30,6 +30,20 @@ struct CommandTests {
         }
     }
 
+    @Test func aProgramStillBeingWrittenStartsOnceItIsDone() async throws {
+        let program = try FakeTool.script(named: "busy", "printf ok")
+        let descriptor = open(program.path, O_WRONLY | O_CLOEXEC)
+        try #require(descriptor >= 0)
+        let writer = FileHandle(fileDescriptor: descriptor, closeOnDealloc: false)
+        let finishing = Task {
+            try await Task.sleep(for: .milliseconds(100))
+            try writer.close()
+        }
+        let output = try await Command.run(program)
+        try await finishing.value
+        #expect(String(decoding: output.standardOutput, as: UTF8.self) == "ok")
+    }
+
     @Test func aHangingProgramTimesOut() async {
         let start = ContinuousClock.now
         await #expect(throws: ToolError.timedOut) {

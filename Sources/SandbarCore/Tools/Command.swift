@@ -19,8 +19,8 @@ package enum Command {
         _ program: URL, _ arguments: [String] = [], environment: [String: String] = [:],
         timeout: Duration = .seconds(30)
     ) async throws -> Output {
-        let output = Pipe()
-        let error = Pipe()
+        let output = try newPipe()
+        let error = try newPipe()
         let launched = try launch(
             program, arguments, environment, input: FileHandle.nullDevice, output: output, error: error)
         return try await withTaskCancellationHandler {
@@ -51,8 +51,8 @@ package enum Command {
     package static func start(
         _ program: URL, _ arguments: [String] = [], environment: [String: String] = [:]
     ) throws -> Running {
-        let input = Pipe()
-        let output = Pipe()
+        let input = try newPipe()
+        let output = try newPipe()
         #if canImport(Darwin)
             guard fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) == 0 else {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
@@ -143,35 +143,48 @@ package enum Command {
         _ program: URL, _ arguments: [String], _ environment: [String: String],
         input: Any, output: Any, error: Any
     ) throws -> Launched {
-        #if os(Linux)
-            for case let pipe as Pipe in [input, output, error] {
-                for end in [pipe.fileHandleForReading, pipe.fileHandleForWriting] {
-                    guard fcntl(end.fileDescriptor, F_SETFD, FD_CLOEXEC) == 0 else {  // or another launch inherits it
-                        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-                    }
-                }
-            }
-        #endif
-        let process = Process()
-        process.executableURL = program
-        process.arguments = arguments
-        process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
-        process.standardInput = input
-        process.standardOutput = output
-        process.standardError = error
         let (exits, exited) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
-        process.terminationHandler = { exited.yield($0.terminationStatus) }
         var unblocked = sigset_t()
         var blocked = sigset_t()
         sigemptyset(&unblocked)
         pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // the program inherits it; worker threads block SIGTERM
         defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
-        do {
-            try process.run()
-        } catch {
-            throw ToolError.missing
+        for _ in 1...10 {
+            let process = Process()
+            process.executableURL = program
+            process.arguments = arguments
+            process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+            process.standardInput = input
+            process.standardOutput = output
+            process.standardError = error
+            process.terminationHandler = { exited.yield($0.terminationStatus) }
+            do {
+                try launching.withLock { try process.run() }
+                let exit = Task { await exits.first { _ in true }! }  // nothing cancels this task
+                return Launched(process: process, exit: exit)
+            } catch let failure as NSError {
+                let cause = failure.userInfo[NSUnderlyingErrorKey] as? NSError ?? failure
+                guard cause.domain == NSPOSIXErrorDomain, cause.code == Int(ETXTBSY) else { throw ToolError.missing }
+                Thread.sleep(forTimeInterval: 0.025)  // a launch elsewhere still holds the just-written file open
+            }
         }
-        return Launched(process: process, exit: Task { await exits.first { _ in true }! })  // nothing cancels this task
+        throw ToolError.missing
+    }
+
+    private static let launching = NSLock()  // on Linux a program inherits every descriptor made while it is spawned
+
+    private static func newPipe() throws -> Pipe {
+        try launching.withLock {
+            let pipe = Pipe()
+            #if os(Linux)
+                for end in [pipe.fileHandleForReading, pipe.fileHandleForWriting] {
+                    guard fcntl(end.fileDescriptor, F_SETFD, FD_CLOEXEC) == 0 else {
+                        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+                    }
+                }
+            #endif
+            return pipe
+        }
     }
 
     private static func collect(_ handle: FileHandle) async -> Data {
