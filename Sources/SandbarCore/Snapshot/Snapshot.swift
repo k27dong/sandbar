@@ -156,6 +156,14 @@ package struct Snapshot: Codable, Equatable, Sendable {
         return due
     }
 
+    package func status(at now: Date, isRefreshing: Bool, isOffline: Bool) -> String {
+        if isRefreshing { return "Updating…" }
+        let offline = isOffline ? "Offline." : nil
+        guard let readAt = pullRequests.readAt else { return offline ?? "" }
+        let age = now.timeIntervalSince(readAt) < 60 ? "just now" : "\(ShortTime.age(since: readAt, to: now)) ago"
+        return [offline, "Updated \(age)"].compactMap(\.self).joined(separator: " ")
+    }
+
     package var fullestLimit: UsageLimit? {
         accounts.flatMap(\.limits.value).max { $0.used < $1.used }
     }

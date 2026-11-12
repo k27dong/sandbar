@@ -65,4 +65,63 @@ struct PullRequestListTests {
         #expect(list.mine.count == 3)
         #expect(list.openCount == 5)
     }
+
+    @Test func aStackWalksAsItIsShownFoldedOrOpenFromEitherEnd() throws {
+        let chain: [PullRequest] = [
+            .sample(1, headBranch: "a"), .sample(2, baseBranch: "a", headBranch: "b"),
+            .sample(3, baseBranch: "b", headBranch: "c"), .sample(4, baseBranch: "c", headBranch: "d"),
+        ]
+        let list = PullRequestList(mine: chain, reviewRequests: [.sample(9, author: "mchen")])
+        guard case .stack(let stack) = try #require(list.mine.first) else {
+            Issue.record("the four chained pull requests are one stack")
+            return
+        }
+        let request = PullRequestList.Selection.pullRequest(PullRequest.sample(9).id)
+        let rows = { (numbers: [Int]) in
+            numbers.map { PullRequestList.Selection.pullRequest(PullRequest.sample($0).id) }
+        }
+
+        #expect(
+            list.rows(openStacks: [], topFirst: false).map(\.selection) == [request] + rows([1, 2]) + [.fold(stack.id)])
+        #expect(
+            list.rows(openStacks: [], topFirst: true).map(\.selection) == [request, .fold(stack.id)] + rows([2, 1]))
+        #expect(
+            list.rows(openStacks: [stack.id], topFirst: true).map(\.selection)
+                == [request, .fold(stack.id)] + rows([4, 3, 2, 1]))
+    }
+
+    @Test func aStackOfThreeHasNoFoldRow() {
+        let chain: [PullRequest] = [
+            .sample(1, headBranch: "a"), .sample(2, baseBranch: "a", headBranch: "b"),
+            .sample(3, baseBranch: "b", headBranch: "c"),
+        ]
+        let rows = PullRequestList(mine: chain, reviewRequests: []).rows(openStacks: [], topFirst: false)
+        #expect(rows.map(\.selection) == [1, 2, 3].map { .pullRequest(PullRequest.sample($0).id) })
+    }
+
+    @Test func theSelectionMovesThroughTheRowsAndStaysAtBothEnds() {
+        let rows = PullRequestList(mine: [.sample(1), .sample(2)], reviewRequests: [])
+            .rows(openStacks: [], topFirst: true)
+        let first = rows[0].selection
+        let last = rows[1].selection
+        #expect(PullRequestList.selection(after: nil, movedBy: 1, in: rows) == first)
+        #expect(PullRequestList.selection(after: nil, movedBy: -1, in: rows) == last)
+        #expect(PullRequestList.selection(after: first, movedBy: 1, in: rows) == last)
+        #expect(PullRequestList.selection(after: last, movedBy: 1, in: rows) == last)
+        #expect(PullRequestList.selection(after: first, movedBy: -1, in: rows) == first)
+        #expect(PullRequestList.selection(after: .fold("a stack that is gone"), movedBy: 1, in: rows) == first)
+        #expect(PullRequestList.selection(after: nil, movedBy: 1, in: []) == nil)
+    }
+
+    @Test func onlyTheChosenRepositoriesAreKept() {
+        let lists = PullRequestLists(
+            mine: [.sample(1), .sample(2, repository: "acme/api")],
+            reviewRequests: [.sample(3, repository: "acme/tools")], hiddenOrganizations: ["acme"])
+        #expect(lists.repositories == ["acme/api", "acme/storefront", "acme/tools"])
+        #expect(lists.only(in: nil) == lists)
+        let chosen = lists.only(in: ["acme/api", "acme/tools"])
+        #expect(chosen.mine.map(\.number) == [2])
+        #expect(chosen.reviewRequests.map(\.number) == [3])
+        #expect(chosen.hiddenOrganizations == ["acme"])
+    }
 }
