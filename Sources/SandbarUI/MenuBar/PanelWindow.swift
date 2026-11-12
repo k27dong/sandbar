@@ -5,8 +5,13 @@ import SwiftUI
 package final class PanelWindow {
     private var panel: NSPanel?
     private var monitors: [Any] = []
+    private weak var itemWindow: NSWindow?
 
-    package init() {}
+    package init() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(applicationActivated), name: NSWorkspace.didActivateApplicationNotification,
+            object: nil)
+    }
 
     package var isOpen: Bool { panel != nil }
     package var onClose: (() -> Void)?
@@ -17,6 +22,7 @@ package final class PanelWindow {
             return
         }
         guard let buttonWindow = button.window else { return }
+        itemWindow = buttonWindow
 
         let hosting = NSHostingView(rootView: content)
         let size = hosting.fittingSize
@@ -32,6 +38,7 @@ package final class PanelWindow {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.collectionBehavior = [.transient, .ignoresCycle]
+        panel.hidesOnDeactivate = false  // a panel that AppKit hides on its own would still count as open here
 
         let cornerRadius: CGFloat = 14
         if #available(macOS 26.0, *) {
@@ -87,6 +94,11 @@ package final class PanelWindow {
         panel.orderOut(nil)
         self.panel = nil
         onClose?()
+    }
+
+    @objc private func applicationActivated(_ notification: Notification) {
+        let pressOnItem = NSEvent.pressedMouseButtons != 0 && itemWindow?.frame.contains(NSEvent.mouseLocation) == true
+        if !pressOnItem { close() }  // on macOS 27 a press on the item can make another app active; its action closes
     }
 }
 
