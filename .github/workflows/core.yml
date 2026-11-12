@@ -1,0 +1,19 @@
+name: core
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: core-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    container: swift:6.4
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: Scripts/check.sh
