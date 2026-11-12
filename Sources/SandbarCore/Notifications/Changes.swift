@@ -15,7 +15,7 @@ extension Snapshot {
         if parts.contains(.pullRequests), old.pullRequests.readAt != nil, pullRequests.readAt != nil {
             let before = old.pullRequests.value
             let lists = pullRequests.value
-            let was = Dictionary((before.mine + before.reviewRequests).map { ($0.id, $0) }) { first, _ in first }
+            let was = Dictionary(before.mine.map { ($0.id, $0) }) { first, _ in first }
             for pullRequest in lists.mine {
                 guard let last = was[pullRequest.id] else { continue }
                 if pullRequest.verdict != last.verdict, let verdict = pullRequest.verdict {
@@ -49,7 +49,7 @@ extension Snapshot {
                     if last.used < 0.8, limit.used >= 0.8 {
                         changes.append(.limitNear(account: account.account, limit: limit))
                     }
-                    if limit.resetsAt == nil, limit.used < last.used {
+                    if last.resetsAt == nil, limit.resetsAt == nil, limit.used < last.used {
                         changes.append(.limitReset(account: account.account, limit: limit))
                     }
                 }

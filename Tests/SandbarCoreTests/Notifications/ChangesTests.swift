@@ -50,6 +50,11 @@ struct ChangesTests {
         let new = Self.snapshot(
             mine: [.sample(1, decision: .approved, reviews: [Self.review("mchen", .approved)])], read: nil)
         #expect(Self.changes(from: old, to: new).isEmpty)
+        let readBefore = Self.snapshot(accounts: [Self.limits(Self.personal, [.init(window: .week, used: 0.5)])])
+        let unreadNow = Self.snapshot(accounts: [
+            Self.limits(Self.personal, [.init(window: .week, used: 0.9)], read: nil)
+        ])
+        #expect(Self.changes(from: readBefore, to: unreadNow).isEmpty)
     }
 
     @Test func aPullRequestTurningApprovedGivesApprovedByTheReviewer() {
@@ -118,7 +123,9 @@ struct ChangesTests {
         #expect(changes == [.changesRequested(asked, by: "dana")])
     }
 
-    @Test(arguments: [Checks.Verdict.passed, .running, nil]) func checksTurningFailedGiveChecksFailed(
+    static let verdictsBeforeFailing: [Checks.Verdict?] = [.passed, .running, nil]
+
+    @Test(arguments: verdictsBeforeFailing) func checksTurningFailedGiveChecksFailed(
         before: Checks.Verdict?
     ) {
         let old = PullRequest.sample(1, checks: Checks(verdict: before))
@@ -154,11 +161,11 @@ struct ChangesTests {
         #expect(changes == [.reviewRequested(added)])
     }
 
-    @Test func aReviewRequestMovingToMineGivesNothing() {
+    @Test func aPullRequestMovingFromReviewRequestsToMineGivesNothing() {
         let request = PullRequest.sample(3, author: "mchen")
-        #expect(
-            Self.changes(from: Self.snapshot(reviewRequests: [request]), to: Self.snapshot(reviewRequests: [request]))
-                .isEmpty)
+        let mine = PullRequest.sample(
+            3, author: "mchen", decision: .approved, reviews: [Self.review("dana", .approved)])
+        #expect(Self.changes(from: Self.snapshot(reviewRequests: [request]), to: Self.snapshot(mine: [mine])).isEmpty)
     }
 
     @Test func aPullRequestOfAnotherPersonIsNotWatchedForApproval() {
@@ -180,6 +187,24 @@ struct ChangesTests {
     @Test func stayingAboveEightyPercentGivesNothing() {
         let before = UsageLimit(window: .week, used: 0.85, resetsAt: Sample.now + 86_400)
         let after = UsageLimit(window: .week, used: 0.90, resetsAt: Sample.now + 86_400)
+        let changes = Self.changes(
+            from: Self.snapshot(accounts: [Self.limits(Self.personal, [before])]),
+            to: Self.snapshot(accounts: [Self.limits(Self.personal, [after])]))
+        #expect(changes.isEmpty)
+    }
+
+    @Test func aLimitStartingAtExactlyEightyPercentAndRisingGivesNothing() {
+        let before = UsageLimit(window: .week, used: 0.80, resetsAt: Sample.now + 86_400)
+        let after = UsageLimit(window: .week, used: 0.85, resetsAt: Sample.now + 86_400)
+        let changes = Self.changes(
+            from: Self.snapshot(accounts: [Self.limits(Self.personal, [before])]),
+            to: Self.snapshot(accounts: [Self.limits(Self.personal, [after])]))
+        #expect(changes.isEmpty)
+    }
+
+    @Test func aLimitLosingItsResetTimeWhenItResetsGivesNothing() {
+        let before = UsageLimit(window: .week, used: 0.45, resetsAt: Sample.now - 60)
+        let after = UsageLimit(window: .week, used: 0.0)
         let changes = Self.changes(
             from: Self.snapshot(accounts: [Self.limits(Self.personal, [before])]),
             to: Self.snapshot(accounts: [Self.limits(Self.personal, [after])]))

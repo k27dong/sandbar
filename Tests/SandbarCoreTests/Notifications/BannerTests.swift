@@ -62,7 +62,7 @@ struct BannerTests {
             [
                 .reviewRequested(PullRequest.sample(4, title: "Cache the cart total", author: "dana")),
                 .reviewRequested(PullRequest.sample(5, title: "Tidy the receipt layout", author: "dana")),
-                .reviewRequested(PullRequest.sample(6, title: "Retry webhook deliveries", author: "dana")),
+                .reviewRequested(PullRequest.sample(6, title: "Retry webhook deliveries with backoff", author: "dana")),
             ],
             ["Review requested by dana", "Cache the cart total and 2 more"]
         ),
@@ -98,7 +98,11 @@ struct BannerTests {
         ),
     ]
 
-    static let monthEnd = Date(timeIntervalSince1970: 1_796_083_200)  // 2026-12-01 00:00 UTC
+    static let monthEnd: Date = {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        return DateComponents(calendar: utc, year: 2026, month: 12, day: 1).date!
+    }()
 
     static func failing(_ pullRequest: PullRequest, _ names: [String]) -> PullRequest {
         var failing = pullRequest
@@ -207,14 +211,20 @@ struct BannerTests {
         var everything = NotificationSettings()
         everything.reviewRequested = true
         everything.limitNear = true
-        #expect(Banner.now(for: changes, settings: everything, at: Sample.now).count == 6)
-        let switches: [WritableKeyPath<NotificationSettings, Bool>] = [
-            \.approved, \.changesRequested, \.checksFailed, \.reviewRequested, \.limitReset, \.limitNear,
+        let titles = [
+            "Approved by mchen", "Changes requested by priya", "lint failed", "Review requested by kd", "Limit reset",
+            "80% used",
         ]
-        for off in switches {
+        #expect(Banner.now(for: changes, settings: everything, at: Sample.now).map(\.title) == titles)
+        let switches: [(WritableKeyPath<NotificationSettings, Bool>, String)] = [
+            (\.approved, titles[0]), (\.changesRequested, titles[1]), (\.checksFailed, titles[2]),
+            (\.reviewRequested, titles[3]), (\.limitReset, titles[4]), (\.limitNear, titles[5]),
+        ]
+        for (off, missing) in switches {
             var settings = everything
             settings[keyPath: off] = false
-            #expect(Banner.now(for: changes, settings: settings, at: Sample.now).count == 5)
+            let left = Banner.now(for: changes, settings: settings, at: Sample.now).map(\.title)
+            #expect(left == titles.filter { $0 != missing })
         }
     }
 
@@ -222,7 +232,7 @@ struct BannerTests {
         #expect(Self.lines([]).isEmpty)
     }
 
-    @Test func oneBannerOpensItsPullRequestAndSeveralOpenThePanel() throws {
+    @Test func oneBannerOpensItsPullRequestAndSeveralOpenThePanel() {
         let one = Banner.now(
             for: [.approved(Self.retry, by: "mchen")], settings: NotificationSettings(), at: Sample.now)
         #expect(one.map(\.opens) == [.pullRequest(Self.retry.url)])
@@ -246,11 +256,19 @@ struct BannerTests {
     }
 
     @Test func bannersForNowAreDeliveredNowWithTheKindAndTheSecondInTheirId() {
+        var settings = NotificationSettings()
+        settings.reviewRequested = true
         let banners = Banner.now(
-            for: [.approved(Self.retry, by: "mchen"), .changesRequested(Self.cache, by: "priya")],
-            settings: NotificationSettings(), at: Sample.now)
-        #expect(banners.map(\.deliverAt) == [nil, nil])
-        #expect(banners.map(\.id) == ["approved-1794506400", "changesRequested-1794506400"])
+            for: [
+                .approved(Self.retry, by: "mchen"), .changesRequested(Self.cache, by: "priya"),
+                .checksFailed(Self.failing(Self.tidy, ["lint"])), .reviewRequested(Self.cache),
+            ], settings: settings, at: Sample.now)
+        #expect(banners.map(\.deliverAt) == [nil, nil, nil, nil])
+        #expect(
+            banners.map(\.id) == [
+                "approved-1794506400", "changesRequested-1794506400", "checksFailed-1794506400",
+                "reviewRequested-1794506400",
+            ])
     }
 
     static let resetTime = Date(timeIntervalSince1970: 1_794_780_000)  // on a whole minute
