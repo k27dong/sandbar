@@ -66,6 +66,8 @@ actor GitHubStub {
     private var held: CheckedContinuation<Void, Never>?
     private var holdsNext = false
     private var holdsTheLogin = false
+    private var holdsTheCode = false
+    private var status = 200
 
     nonisolated var send: GitHubClient.Send {
         { request in try await self.answer(request) }
@@ -77,6 +79,16 @@ actor GitHubStub {
 
     func holdTheLogin() {
         holdsTheLogin = true
+    }
+
+    func holdTheCode() {
+        holdsTheCode = true
+    }
+
+    var isHolding: Bool { held != nil }
+
+    func refuseTokens() {
+        status = 401
     }
 
     func release() {
@@ -98,6 +110,10 @@ actor GitHubStub {
         let answer: String
         switch address.path {
         case "/login/device/code":
+            if holdsTheCode {
+                holdsTheCode = false
+                await withCheckedContinuation { held = $0 }
+            }
             answer = Self.deviceCode
         case "/login/oauth/access_token":
             answer = tokenAnswers.isEmpty ? #"{"error": "authorization_pending"}"# : tokenAnswers.removeFirst()
@@ -118,7 +134,7 @@ actor GitHubStub {
             answer = lists
         }
         let response = try #require(
-            HTTPURLResponse(url: address, statusCode: 200, httpVersion: nil, headerFields: nil))
+            HTTPURLResponse(url: address, statusCode: status, httpVersion: nil, headerFields: nil))
         return (Data(answer.utf8), response)
     }
 }
@@ -224,8 +240,14 @@ enum Fake {
         try FakeTool.script(
             named: "gh",
             signedIn
-                ? #"[ "$1 $2" = "auth token" ] && printf 'gho_fromgh\n'"#
+                ? #"echo "$*" >> "$(dirname "$0")/asked"; [ "$1 $2" = "auth token" ] && printf 'gho_fromgh\n'"#
                 : "echo 'You are not logged into any GitHub hosts.' >&2; exit 1")
+    }
+
+    static func timesAsked(_ program: URL) throws -> Int {
+        let record = beside(program, "asked")
+        guard FileManager.default.fileExists(atPath: record.path) else { return 0 }
+        return try String(contentsOf: record, encoding: .utf8).split(separator: "\n").count
     }
 
     static let usageReport =

@@ -228,6 +228,60 @@ import Testing
         }
     }
 
+    @Test func aSignOutWhileGhsSignInIsAnsweredLeavesGitHubSignedOut() async throws {
+        try await withHome { home in
+            let github = GitHubStub()
+            let model = home.model(findTool: Fake.found(["gh": try Fake.gh()]), send: github.send)
+            model.start()
+            try await eventually("the first refresh ends") { await github.requests > 0 && !model.isRefreshing }
+            await github.holdTheLogin()
+            Task { await model.useGhSignIn() }
+            try await eventually("the login is asked for") { await github.isHolding }
+
+            model.signOutOfGitHub()
+            await github.release()
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+            #expect(model.gitHub == .none)
+            #expect(model.gitHubNote == nil)
+            #expect(Preferences(defaults: home.defaults).gitHubLogin == nil)
+            #expect(!Preferences(defaults: home.defaults).usesGhSignIn)
+        }
+    }
+
+    @Test func aSignOutOfGitHubLeavesAToolsSignInRunning() async throws {
+        try await withHome { home in
+            let model = home.model(findTool: Fake.found(["codex": try Fake.codex()]))
+            model.start()
+            Task { await model.addAccount(.codex) }
+            try await eventually("the browser is waited for") { model.signInStep[.codex] == .waitingForBrowser }
+
+            model.signOutOfGitHub()
+            try await Task.sleep(for: .milliseconds(100))  // a sign-in the sign-out cancelled would have ended by now
+            #expect(model.signInStep[.codex] == .waitingForBrowser)
+            #expect(model.isSigningIn)
+            model.cancelSignIn(.codex)
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+        }
+    }
+
+    @Test func aSignOutBeforeTheCodeArrivesLeavesGitHubSignedOut() async throws {
+        try await withHome { home in
+            let github = GitHubStub()
+            await github.holdTheCode()
+            let model = home.model(send: github.send, sleep: { _ in try await Task.sleep(for: .seconds(30)) })
+            Task { await model.connectGitHub() }
+            try await eventually("the code is asked for") { await github.isHolding }
+
+            model.signOutOfGitHub()
+            await github.release()
+            try await eventually("the answer is taken") { !model.isSigningIn || model.gitHub != .none }
+            #expect(model.gitHub == .none)
+            #expect(!model.isSigningIn)
+            model.cancelGitHubSignIn()
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+        }
+    }
+
     @Test func ghsSignInConnectsAndKeepsNothing() async throws {
         try await withHome(fresh: true) { home in
             let github = GitHubStub()
@@ -253,6 +307,7 @@ import Testing
             await github.release()
             try await eventually("the pull requests are read") { model.list.openCount == 1 }
             #expect(Set(await github.tokens) == ["bearer gho_fromgh"])
+            #expect(model.canUseGh, "GitHub took the token gh gave")
         }
     }
 
@@ -294,6 +349,84 @@ import Testing
             try await ends("gh's sign-in ends") { await model.useGhSignIn() }
             #expect(model.gitHub == .none)
             #expect(model.gitHubNote == "GitHub sign-in is missing or no longer valid.")
+        }
+    }
+
+    @Test func aGhThatCannotStartIsNotOffered() async throws {
+        try await withHome(fresh: true) { home in
+            let model = home.model(findTool: Fake.found(["gh": URL(filePath: "/nowhere/gh")]))
+            model.panelOpened()
+            try await eventually("the lookup ends") { !model.existingSignIns.isEmpty }
+            #expect(!model.canUseGh)
+        }
+    }
+
+    @Test func aGhSignInThatGitHubRefusesIsNotOfferedAgain() async throws {
+        try await withHome(fresh: true) { home in
+            let github = GitHubStub()
+            await github.refuseTokens()
+            let gh = try Fake.gh()
+            let model = home.model(findTool: Fake.found(["gh": gh]), send: github.send)
+            model.panelOpened()
+            try await eventually("gh is found signed in") { model.canUseGh }
+
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
+            #expect(model.gitHub == .none)
+            #expect(model.gitHubNote == "GitHub sign-in is missing or no longer valid.")
+            #expect(!model.canUseGh)
+
+            model.findSignIns()
+            try await eventually("gh is asked again") { (try? Fake.timesAsked(gh)) == 3 }
+            try await Task.sleep(for: .milliseconds(100))  // a lookup that offered gh again would have done so by now
+            #expect(!model.canUseGh)
+        }
+    }
+
+    @Test func aRefreshThroughGhThatGitHubRefusesStopsOfferingGh() async throws {
+        try await withHome { home in
+            Preferences(defaults: home.defaults).usesGhSignIn = true
+            let github = GitHubStub()
+            await github.refuseTokens()
+            let gh = try Fake.gh()
+            let model = home.model(findTool: Fake.found(["gh": gh]), send: github.send)
+            model.findSignIns()
+            try await eventually("gh is found signed in") { model.canUseGh }
+
+            try await ends("the refresh ends") { await model.refresh(.all) }
+            #expect(model.snapshot.pullRequests.trouble == .signedOut)
+            #expect(model.needsGitHubSignIn)
+            #expect(!model.canUseGh)
+
+            model.findSignIns()
+            try await eventually("gh is asked again") { (try? Fake.timesAsked(gh)) == 3 }
+            try await Task.sleep(for: .milliseconds(100))  // a lookup that offered gh again would have done so by now
+            #expect(!model.canUseGh)
+        }
+    }
+
+    @Test func aGhWithNoSignInLeftIsOfferedAgainOnceItHasOne() async throws {
+        try await withHome(fresh: true) { home in
+            let github = GitHubStub()
+            let gh = try Fake.gh()
+            let signedOut = try Fake.gh(signedIn: false)
+            let since = Fake.beside(gh, "signed-out")
+            let model = home.model(
+                findTool: { name in
+                    guard name == "gh" else { return nil }
+                    return FileManager.default.fileExists(atPath: since.path) ? signedOut : gh
+                }, send: github.send)
+            model.panelOpened()
+            try await eventually("gh is found signed in") { model.canUseGh }
+
+            try Data().write(to: since)
+            model.findSignIns()
+            try await eventually("gh is found signed out") { !model.canUseGh }
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
+            try #require(model.gitHubNote == "GitHub sign-in is missing or no longer valid.")
+
+            try FileManager.default.removeItem(at: since)
+            model.findSignIns()
+            try await eventually("gh is offered again: GitHub refused nothing") { model.canUseGh }
         }
     }
 

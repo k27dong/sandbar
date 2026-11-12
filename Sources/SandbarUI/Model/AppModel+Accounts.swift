@@ -22,6 +22,7 @@ extension AppModel {
     package var isSetUp: Bool { isFixed || preferences.isSetUp }
     package var isChangingAccounts: Bool { accountAction != nil }
     package var isSigningIn: Bool { accountAction.map { $0.kind != .removal } ?? false }
+    package var canUseGh: Bool { ghHasSignIn && !gitHubRefusedGh }
 
     package var needsGitHubSignIn: Bool {
         guard !isFixed else { return false }
@@ -48,6 +49,7 @@ extension AppModel {
             let signIn = GitHubSignIn(clientID: Self.gitHubClientID, send: send, sleep: sleep)
             do {
                 let code = try await signIn.start()
+                try Task.checkCancellation()
                 gitHub = .code(code)
                 let token = try await signIn.token(for: code)
                 let login = try await GitHubClient(token: { token }, send: send).viewer()
@@ -86,16 +88,18 @@ extension AppModel {
             do {
                 guard let client = client(throughGh: true) else { throw GitHubError.signedOut }
                 let login = try await client.viewer()
+                try Task.checkCancellation()
                 forgetKeptSignIn()
                 connected(as: login, throughGh: true)
             } catch {
+                guard !Task.isCancelled else { return }
                 gitHubNote = Snapshot.detail(of: error, tool: nil)
             }
         }
     }
 
     package func signOutOfGitHub() {
-        cancelGitHubSignIn()
+        if let accountAction, accountAction.kind == .gitHubSignIn { accountAction.task.cancel() }
         gitHubNote = nil
         forgetKeptSignIn()
         gitHub = .none

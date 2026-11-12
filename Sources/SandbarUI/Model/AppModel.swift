@@ -42,7 +42,6 @@ import os
     package internal(set) var gitHub: GitHubConnection
     package internal(set) var gitHubNote: String?
     package internal(set) var isWaitingForGitHub = false
-    package private(set) var canUseGh = false
     package private(set) var existingSignIns: [Tool: ExistingSignIn] = [:]
     package internal(set) var signInStep: [Tool: SignInStep] = [.claude: .idle, .codex: .idle]
     package let preferences: Preferences
@@ -68,6 +67,8 @@ import os
     private(set) var tools: [Tool: URL] = [:]
     private(set) var fetchedTools: Set<Tool> = []
     private(set) var gh: URL?
+    private(set) var ghHasSignIn = false
+    private(set) var gitHubRefusedGh = false
     private(set) var keepsUnreadableAccounts = false
     private(set) var isFixed = false
 
@@ -315,7 +316,14 @@ import os
 
     func client(throughGh: Bool) -> GitHubClient? {
         guard !throughGh else {
-            return gh.map { gh in GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }, send: send) }
+            return gh.map { gh in
+                GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }) {
+                    @MainActor [weak self, send] request in
+                    let (data, response) = try await send(request)
+                    if response.statusCode == 401 { self?.gitHubRefusedGh = true }  // gh hands its token out unchecked
+                    return (data, response)
+                }
+            }
         }
         return GitHubClient(
             token: { [keychain] in
@@ -337,9 +345,17 @@ import os
                     (gh: model.gh, own: model.tools.filter { !model.fetchedTools.contains($0.key) })
                 })
             else { return }
-            var canUseGh = false
+            var ghHasSignIn = false
             if let gh = known.gh {
-                canUseGh = (try? await GitHubSignIn.ghToken(gh: gh)) != nil  // any failure: no sign-in to offer
+                do {
+                    _ = try await GitHubSignIn.ghToken(gh: gh)
+                    ghHasSignIn = true
+                } catch {
+                    if error as? GitHubError != .signedOut {
+                        Self.log.error(
+                            "gh could not say whether it is signed in: \(String(describing: error), privacy: .public)")
+                    }
+                }
             }
             let signIns = await withTaskGroup(of: (Tool, ExistingSignIn).self) { group in
                 for tool in Tool.allCases {
@@ -358,7 +374,7 @@ import os
                 for await (tool, signIn) in group { signIns[tool] = signIn }
                 return signIns
             }
-            self?.canUseGh = canUseGh
+            self?.ghHasSignIn = ghHasSignIn
             self?.existingSignIns = signIns
         }
     }
