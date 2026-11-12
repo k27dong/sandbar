@@ -39,6 +39,7 @@ struct AccountTests {
 
     @Test func theTitleIsTheNameAndThePlan() {
         #expect(Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil).title == "Work (Enterprise)")
+        #expect(Account(tool: .codex, name: "Codex", plan: "", profile: nil).title == "Codex")
     }
 
     @Test(arguments: environmentCases) func theEnvironmentPointsTheToolAtItsProfile(

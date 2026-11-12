@@ -18,7 +18,7 @@ package struct Account: Codable, Hashable, Identifiable, Sendable {
         self.profile = profile
     }
 
-    package var title: String { "\(name) (\(plan))" }
+    package var title: String { plan.isEmpty ? name : "\(name) (\(plan))" }
 
     package var environment: [String: String] {
         switch tool {
