@@ -13,54 +13,72 @@ package struct PanelView: View {
     }
 
     package var body: some View {
-        let tone = model.isOffline ? Color.warningText : .secondary
+        let tone = model.isSetUp && model.isOffline ? Color.warningText : .secondary
         let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy
+        let showsTheCode = if case .code = model.gitHub { true } else { false }
         VStack(spacing: 0) {
-            if !model.snapshot.accounts.isEmpty {
-                UsageRows()
+            if showsTheCode || !model.isSetUp {
+                SetupView()
+            } else {
+                if !model.snapshot.accounts.isEmpty {
+                    UsageRows()
+                    ThinLine()
+                }
+                if model.needsGitHubSignIn {
+                    GitHubRow()
+                    ThinLine()
+                }
+                ScrollView {
+                    PullRequestRows()
+                }
+                .scrollIndicators(barTakesRoom ? .never : .automatic)  // or the rows end short of the footer's line
+            }
+            if !showsTheCode {
                 ThinLine()
-            }
-            ScrollView {
-                PullRequestRows()
-            }
-            .scrollIndicators(barTakesRoom ? .never : .automatic)  // or the rows would end short of the footer's line
-            ThinLine()
-            HStack(spacing: 8) {
-                Button {
-                    Task { await model.refresh(.all) }
-                } label: {
-                    HStack(spacing: 5) {
-                        Icon.refresh.image
-                        Text(model.status)
+                HStack(spacing: 8) {
+                    if model.isSetUp {
+                        Button {
+                            Task { await model.refresh(.all) }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Icon.refresh.image
+                                Text(model.status)
+                            }
+                            .foregroundStyle(tone)
+                            .padding(.horizontal, 4)
+                            .frame(height: 19)
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .background(.quinary.opacity(refreshHovered ? 1 : 0), in: .rect(cornerRadius: 6))
+                        .onHover { refreshHovered = $0 }
+                        .help(model.snapshot.pullRequests.detail ?? "")
+                    } else {
+                        Text(model.setupStatus)
+                            .foregroundStyle(tone)
+                            .padding(.horizontal, 4)
+                            .frame(height: 19)
                     }
+                    Spacer()
+                    Menu {
+                        Button("Quit Sandbar") { NSApplication.shared.terminate(nil) }
+                            .keyboardShortcut("q")
+                    } label: {
+                        Icon.gear.image
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .contentShape(.rect)
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
                     .foregroundStyle(tone)
-                    .padding(.horizontal, 4)
-                    .frame(height: 19)
-                    .contentShape(.rect)
+                    .background(.quinary.opacity(gearHovered ? 1 : 0), in: .rect(cornerRadius: 6))
+                    .onHover { gearHovered = $0 }
                 }
-                .buttonStyle(.plain)
-                .background(.quinary.opacity(refreshHovered ? 1 : 0), in: .rect(cornerRadius: 6))
-                .onHover { refreshHovered = $0 }
-                .help(model.snapshot.pullRequests.detail ?? "")
-                Spacer()
-                Menu {
-                    Button("Quit Sandbar") { NSApplication.shared.terminate(nil) }
-                        .keyboardShortcut("q")
-                } label: {
-                    Icon.gear.image
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .contentShape(.rect)
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .foregroundStyle(tone)
-                .background(.quinary.opacity(gearHovered ? 1 : 0), in: .rect(cornerRadius: 6))
-                .onHover { gearHovered = $0 }
+                .font(.system(size: 11))
+                .padding(EdgeInsets(top: 6, leading: 10, bottom: 4, trailing: 10))
             }
-            .font(.system(size: 11))
-            .padding(EdgeInsets(top: 6, leading: 10, bottom: 4, trailing: 10))
         }
         .font(.system(size: 13))
         .padding(6)
