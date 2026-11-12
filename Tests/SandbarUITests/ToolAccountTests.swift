@@ -46,6 +46,8 @@ import Testing
                     .claude: .unreadable("Claude Code's answer was not understood."), .codex: .absent,
                 ])
             #expect(!model.canUseExisting(.claude))
+            #expect(model.signInTrouble(.claude) == "Claude Code's answer was not understood.")
+            #expect(model.signInTrouble(.codex) == nil)
         }
     }
 
@@ -176,7 +178,7 @@ import Testing
                 model.signInStep[.codex] == .waitingForBrowser && !opened.addresses.isEmpty
             }
             #expect(model.isSigningIn)
-            #expect(model.isChangingAccounts)
+            #expect(model.accountsAreLocked)
             #expect(opened.addresses == [Fake.codexAddress])
             #expect(model.accounts.isEmpty)
             let profile = try #require(try entries(of: home.files.profiles).first)
@@ -549,7 +551,7 @@ import Testing
             try await eventually("the tool is signing out") {
                 FileManager.default.fileExists(atPath: Fake.beside(slow, "signing-out").path)
             }
-            #expect(model.isChangingAccounts)
+            #expect(model.accountsAreLocked)
             #expect(!model.isSigningIn, "a remove is no sign-in")
 
             try await ends("the sign-in is turned away at once") { await model.addAccount(.claude) }
@@ -557,8 +559,9 @@ import Testing
             #expect(model.signInStep[.claude] == .idle)
             #expect(try entries(of: home.files.profiles).count == 1)
 
-            try await eventually("the remove ends") { !model.isChangingAccounts }
+            try await eventually("the remove ends") { !model.accountsAreLocked }
             #expect(model.signInStep[.claude] == .failed("refused"), "written over nothing")
+            #expect(model.signInTrouble(.claude) == "refused")
             #expect(model.accounts == [added])
         }
     }

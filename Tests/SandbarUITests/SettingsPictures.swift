@@ -62,6 +62,17 @@ import Testing
         }
     }
 
+    @Test func aRefusedShortcutIsSaidUnderItsRow() async throws {
+        try await withHome { home in
+            let model = home.model()
+            let plain = try height(try pane(.general, of: model))
+            model.shortcutIsRefused = true
+            let refused = try height(
+                try pictures("general-refused", of: SettingsView(pane: .general, version: "0.1.0").environment(model)))
+            #expect(refused > plain + 4, "one more line: \(plain), \(refused)")
+        }
+    }
+
     @Test func theRepositorySheetListsTheChosenOnesTooWithNoPullRequestNow() async throws {
         try await withHome { home in
             let model = home.model(snapshot: stage("day"))

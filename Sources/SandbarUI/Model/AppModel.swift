@@ -51,6 +51,8 @@ import os
     package var openSettings: (SettingsWindow.Pane?) -> Void = { _ in }
     package private(set) var launchesAtLogin: Bool
     package private(set) var launchAtLoginNote: String?
+    package var isRecordingShortcut = false
+    package var shortcutIsRefused = false
     package var hasNetwork = true {
         didSet { if hasNetwork, !oldValue { refreshAtOnce() } }
     }
@@ -97,7 +99,7 @@ import os
         keychain: Keychain.Item = Keychain.Item(named: "github"),
         toolDownload: (URL) -> ToolDownload = ToolDownload.init(folder:),
         openAddress: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) },
-        loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void) = ({ LoginItem.isOn }, LoginItem.set)
+        loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void) = ({ false }, { _ in })
     ) {
         self.snapshot = snapshot
         accounts = snapshot.accounts.map(\.account)
@@ -117,12 +119,23 @@ import os
         launchesAtLogin = loginItem.isOn()
     }
 
-    /// Shows a saved snapshot as it was when it was last asked for, and never refreshes it.
-    package convenience init(showing file: URL) {
+    /// Shows a saved snapshot as it was when it was last asked for, never refreshes it, and changes nothing real.
+    package convenience init(
+        showing file: URL, files: Files = .standard, keychain: Keychain.Item = Keychain.Item(named: "github"),
+        findTool: @escaping @Sendable (String) async -> URL? = { await ToolLocation.find($0) },
+        send: @escaping GitHubClient.Send = GitHubClient.urlSession,
+        toolDownload: (URL) -> ToolDownload = ToolDownload.init(folder:)
+    ) {
         let snapshot = SavedSnapshot.read(from: file)
-        self.init(snapshot: snapshot, now: snapshot.lastAsked ?? .now)
+        let defaults = UserDefaults(suiteName: Self.shownSuite)!  // nil only for the app's own or the global domain
+        defaults.removePersistentDomain(forName: Self.shownSuite)
+        self.init(
+            snapshot: snapshot, preferences: Preferences(defaults: defaults), now: snapshot.lastAsked ?? .now,
+            files: files, findTool: findTool, send: send, keychain: keychain, toolDownload: toolDownload)
         isFixed = true
     }
+
+    private static let shownSuite = "com.k27dong.sandbar.shown"
 
     package var list: PullRequestList {
         let lists = snapshot.pullRequests.value
@@ -304,6 +317,10 @@ import os
         launchesAtLogin = loginItem.isOn()
     }
 
+    package func checkLaunchAtLogin() {
+        launchesAtLogin = loginItem.isOn()
+    }
+
     package func open(_ pullRequest: PullRequest) {
         openAddress(pullRequest.url)
         closePanel()
@@ -384,6 +401,7 @@ import os
     private var showsSignIn: Bool { !isSetUp || needsGitHubSignIn }
 
     package func findSignIns() {
+        guard !isFixed else { return }
         findTools()
         let earlier = signInLookup
         signInLookup = Task { [weak self] in

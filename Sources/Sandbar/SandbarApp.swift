@@ -25,6 +25,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.onClose = { [unowned self] in self.statusItem.isHighlighted = false }
         statusItem.show(ring: .none, count: nil, dimmed: false)
 
+        let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settings.target = self
+        let redo = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        let mainMenu = NSMenu()
+        for (title, items) in [
+            (
+                "Sandbar",
+                [
+                    settings,
+                    NSMenuItem(
+                        title: "Quit Sandbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
+                ]
+            ),
+            (
+                "Edit",
+                [
+                    NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"), redo, .separator(),
+                    NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"),
+                    NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"),
+                    NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"),
+                    NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"),
+                ]
+            ),
+            ("Window", [NSMenuItem(title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")]),
+        ] {
+            let menu = NSMenu(title: title)
+            menu.items = items
+            mainMenu.addItem(withTitle: title, action: nil, keyEquivalent: "").submenu = menu
+        }
+        NSApplication.shared.mainMenu = mainMenu  // never shown, with no menu bar of Sandbar's own; it routes the keys
+
         let arguments = ProcessInfo.processInfo.arguments
         if let flag = arguments.firstIndex(of: "--show") {
             guard arguments.indices.contains(flag + 1), FileManager.default.fileExists(atPath: arguments[flag + 1])
@@ -34,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             use(AppModel(showing: URL(filePath: arguments[flag + 1])))
         } else {
-            let model = AppModel()
+            let model = AppModel(loginItem: ({ LoginItem.isOn }, LoginItem.set))
             use(model)
             model.start()
         }
@@ -63,18 +95,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.panel.close()
             settings.show(pane)
         }
-        panel.openSettings = { model.openSettings(nil) }
         self.model = model
         showMenuBarItem()
         registerShortcut()
+    }
+
+    @objc private func openSettings() {
+        model?.openSettings(nil)
     }
 
     private func registerShortcut() {
         guard let model else { return }
         withObservationTracking {
             shortcut = nil  // the old one lets go of its keys first, so the same keys can be taken again
+            guard !model.isRecordingShortcut else { return }
             shortcut = model.preferences.shortcut.map { keys in Shortcut(keys) { [unowned self] in self.togglePanel() }
             }
+            model.shortcutIsRefused = shortcut.map { !$0.isRegistered } ?? false
         } onChange: {
             Task { @MainActor in self.registerShortcut() }
         }

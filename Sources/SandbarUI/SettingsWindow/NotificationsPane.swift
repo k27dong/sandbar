@@ -18,8 +18,7 @@ struct NotificationsPane: View {
             } header: {
                 Text("Usage")
             } footer: {
-                Text("Sound, banner style and Focus are set in System Settings.")
-                    .frame(maxWidth: .infinity, alignment: .leading)  // in a window a footer sits at the trailing edge
+                FooterLine(text: "Sound, banner style and Focus are set in System Settings.")
             }
         }
     }

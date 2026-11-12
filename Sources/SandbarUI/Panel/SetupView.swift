@@ -82,24 +82,6 @@ enum SignInWords {
 
 extension AppModel {
     var gitHubSignInTitle: String { canUseGh ? SignInWords.useGh : "Connect" }
-
-    /// A sign-in that stopped working, or the last GitHub sign-in's failure.
-    var gitHubFailure: String? {
-        let reading = snapshot.pullRequests
-        let wasConnected = if case .connected = gitHub { true } else { false }
-        let stoppedWorking = needsGitHubSignIn && reading.trouble == .signedOut && (isSetUp || wasConnected)
-        return gitHubNote ?? (stoppedWorking ? reading.detail : nil)
-    }
-
-    func signInToGitHub() async {
-        if canUseGh { await useGhSignIn() } else { await connectGitHub() }
-    }
-
-    func copyCodeAndOpenGitHub(_ code: GitHubSignIn.Code) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(code.userCode, forType: .string)
-        openGitHubForCode()
-    }
 }
 
 extension GitHubSignIn.Code {
@@ -244,7 +226,7 @@ private struct SignInButton: View {
             Task { await action() }
         }
         .buttonStyle(RowButton(isPrimary: isPrimary))
-        .unavailable(model.isChangingAccounts)
+        .unavailable(model.accountsAreLocked)
     }
 }
 

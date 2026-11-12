@@ -55,11 +55,10 @@ private final class PaneTabs: NSTabViewController {
         preferences = model.preferences
         super.init(nibName: nil, bundle: nil)
         tabStyle = .toolbar
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         for pane in SettingsWindow.Pane.allCases {
             let host = NSHostingController(rootView: SettingsView(pane: pane, version: version).environment(model))
             host.sizingOptions = .preferredContentSize
-            host.title = pane.title
             let item = NSTabViewItem(viewController: host)
             item.label = pane.title
             item.image = NSImage(systemSymbolName: pane.symbol, accessibilityDescription: nil)
@@ -86,13 +85,13 @@ private final class PaneTabs: NSTabViewController {
         fit()
     }
 
-    private func fit() {  // the window keeps its top edge as each pane brings its own height
+    private func fit() {
         guard let window = view.window, let pane = tabViewItems[selectedTabViewItemIndex].viewController else { return }
         window.title = SettingsWindow.Pane.allCases[selectedTabViewItemIndex].title
         let size = pane.preferredContentSize
         guard size.height > 0 else { return }
         let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
-        let top = window.frame.maxY
+        let top = window.frame.maxY  // the top edge stays put, as in the Mac's own settings windows
         window.setFrame(
             NSRect(x: window.frame.minX, y: top - frame.height, width: frame.width, height: frame.height),
             display: true,
@@ -102,9 +101,9 @@ private final class PaneTabs: NSTabViewController {
 
 package struct SettingsView: View {
     private let pane: SettingsWindow.Pane
-    private let version: String
+    private let version: String?
 
-    package init(pane: SettingsWindow.Pane, version: String) {
+    package init(pane: SettingsWindow.Pane, version: String?) {
         self.pane = pane
         self.version = version
     }
@@ -122,5 +121,16 @@ package struct SettingsView: View {
         .toggleStyle(.switch)
         .scrollDisabled(true)
         .frame(width: 500)
+    }
+}
+
+struct FooterLine: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)  // a window puts a footer at its trailing edge
     }
 }

@@ -30,7 +30,7 @@ struct AccountsPane: View {
                     Text(tool.title)
                 } footer: {
                     if tool == Tool.allCases.last, let note = model.accountsNote {
-                        Text(note).frame(maxWidth: .infinity, alignment: .leading)
+                        FooterLine(text: note)
                     }
                 }
             }
@@ -56,14 +56,14 @@ private struct GitHubAccount: View {
                 Text(login)
             } trailing: {
                 Button("Sign Out") { model.signOutOfGitHub() }
-                    .disabled(model.isChangingAccounts)
+                    .disabled(model.accountsAreLocked)
             }
         } else {
             AccountRow(icon: .gitHub, detail: model.gitHubFailure) {
                 Text(SignInWords.notSignedIn)
             } trailing: {
                 Button(model.gitHubSignInTitle) { Task { await model.signInToGitHub() } }
-                    .disabled(model.isChangingAccounts)
+                    .disabled(model.accountsAreLocked)
             }
         }
     }
@@ -83,7 +83,7 @@ private struct ToolAccounts: View {
                 Text(SignInWords.signedInOnThisMac)
             } trailing: {
                 Button(SignInWords.useIt) { Task { await model.useExisting(tool) } }
-                    .disabled(model.isChangingAccounts)
+                    .disabled(model.accountsAreLocked)
             }
         }
         switch model.signInStep[tool] ?? .idle {
@@ -100,12 +100,11 @@ private struct ToolAccounts: View {
             }
             if isWaiting, tool == .claude { PastedCode() }
         case .idle, .failed:
-            let failure = if case .failed(let sentence) = model.signInStep[tool] { sentence } else { "" }
             AccountRow {
-                Text(failure).foregroundStyle(.secondary)
+                Text(model.signInTrouble(tool) ?? "").foregroundStyle(.secondary)
             } trailing: {
                 Button("Add Account…") { Task { await model.addAccount(tool) } }
-                    .disabled(model.isChangingAccounts)
+                    .disabled(model.accountsAreLocked)
             }
         }
     }
@@ -141,7 +140,7 @@ private struct NamedAccount: View {
             }
         } trailing: {
             Button("Remove") { Task { await model.remove(account) } }
-                .disabled(model.isChangingAccounts)
+                .disabled(model.accountsAreLocked)
         }
         .onChange(of: isEditing) {
             if !isEditing { commit() }

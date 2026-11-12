@@ -15,7 +15,6 @@ package final class PanelWindow {
 
     package var isOpen: Bool { panel != nil }
     package var onClose: (() -> Void)?
-    package var openSettings: (() -> Void)?
 
     package func toggle(under button: NSStatusBarButton, content: (_ maxHeight: CGFloat) -> some View) {
         if isOpen {
@@ -84,15 +83,6 @@ package final class PanelWindow {
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 if Int(event.keyCode) == kVK_Escape {
                     self?.close()
-                    return nil
-                }
-                let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
-                if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "q" {
-                    NSApplication.shared.terminate(nil)
-                    return nil
-                }
-                if modifiers == .command, event.charactersIgnoringModifiers == "," {
-                    self?.openSettings?()
                     return nil
                 }
                 return event

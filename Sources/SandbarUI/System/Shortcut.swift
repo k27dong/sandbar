@@ -12,16 +12,20 @@ package final class Shortcut {
             self.modifiers = modifiers
         }
 
-        /// The key pressed, if it has ⌘, ⌥ or ⌃; nil for any other key press.
-        package init?(_ event: NSEvent) {
-            let flags = event.modifierFlags
-            guard !flags.isDisjoint(with: [.command, .option, .control]) else { return nil }
+        init?(_ event: NSEvent) {
             let marks: [(NSEvent.ModifierFlags, Int)] = [
                 (.control, controlKey), (.option, optionKey), (.shift, shiftKey), (.command, cmdKey),
             ]
-            self.init(
-                keyCode: UInt32(event.keyCode),
-                modifiers: marks.reduce(0) { sum, mark in flags.contains(mark.0) ? sum | UInt32(mark.1) : sum })
+            let modifiers = marks.reduce(UInt32(0)) { sum, mark in
+                event.modifierFlags.contains(mark.0) ? sum | UInt32(mark.1) : sum
+            }
+            self.init(taking: UInt32(event.keyCode), modifiers: modifiers)
+        }
+
+        /// Nil unless ⌃ or ⌥ is held: keys with only ⌘ and ⇧ belong to every app's own menus.
+        package init?(taking keyCode: UInt32, modifiers: UInt32) {
+            guard modifiers & UInt32(controlKey | optionKey) != 0 else { return nil }
+            self.init(keyCode: keyCode, modifiers: modifiers)
         }
 
         package static let standard = Keys(keyCode: UInt32(kVK_ANSI_P), modifiers: UInt32(optionKey | cmdKey))
@@ -65,6 +69,7 @@ package final class Shortcut {
     private let id: UInt32
     private let action: () -> Void
     private var registration: Registration?
+    package private(set) var isRegistered = false
 
     package init(_ keys: Keys, action: @escaping () -> Void) {
         Self.lastID += 1
@@ -92,7 +97,8 @@ package final class Shortcut {
             keys.keyCode, keys.modifiers, EventHotKeyID(signature: Self.signature, id: id), GetApplicationEventTarget(),
             0, &hotKey)
         registration = Registration(hotKey: hotKey, handler: handler)
-        if installed != OSStatus(noErr) || registered != OSStatus(noErr) {
+        isRegistered = installed == OSStatus(noErr) && registered == OSStatus(noErr)
+        if !isRegistered {
             let statuses = "\(installed), \(registered)"
             Self.log.error("\(keys.text, privacy: .public) was not registered: \(statuses, privacy: .public)")
         }
