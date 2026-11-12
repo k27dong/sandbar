@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusItem.show(
                 ring: .none, count: model.snapshot.pullRequests.readAt == nil ? nil : model.list.openCount,
                 dimmed: model.isOffline)
-        } onChange: { [unowned self] in
+        } onChange: {
             Task { @MainActor in self.showCount() }
         }
     }
