@@ -322,6 +322,34 @@ struct BannerTests {
         #expect(banners.map(\.body) == ["Personal · Week"])
     }
 
+    @Test func anUnusedLimitGetsNoResetBanner() {
+        let unused = UsageLimit(window: .fiveHours, used: 0, resetsAt: Sample.now + 5 * 3_600)
+        let banners = Banner.resets(
+            in: Self.snapshot([(Self.personal, [unused])]), settings: NotificationSettings(), now: Sample.now)
+        #expect(banners.isEmpty)
+    }
+
+    @Test func anUnusedLimitIsLeftOutOfABannerSharedWithAUsedOne() {
+        let unused = UsageLimit(window: .week, model: "Fable", used: 0, resetsAt: Self.resetTime + 0.000423)
+        let banners = Banner.resets(
+            in: Self.snapshot([(Self.personal, [unused, Self.ultraWeek])]), settings: NotificationSettings(),
+            now: Sample.now)
+        #expect(banners.map(\.body) == ["Personal · Week"])
+    }
+
+    @Test func anUnusedLimitWithAMovingResetTimeGivesTheSameBannersEachTime() {
+        let first = UsageLimit(window: .fiveHours, used: 0, resetsAt: Sample.now + 5 * 3_600)
+        let later = UsageLimit(window: .fiveHours, used: 0, resetsAt: Sample.now + 5 * 3_600 + 24)
+        let before = Banner.resets(
+            in: Self.snapshot([(Self.personal, [first, Self.ultraWeek])]), settings: NotificationSettings(),
+            now: Sample.now)
+        let after = Banner.resets(
+            in: Self.snapshot([(Self.personal, [later, Self.ultraWeek])]), settings: NotificationSettings(),
+            now: Sample.now + 24)
+        #expect(before == after)
+        #expect(before.count == 1)
+    }
+
     @Test func resetsGiveNothingWhenTheSwitchIsOff() {
         var settings = NotificationSettings()
         settings.limitReset = false

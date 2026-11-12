@@ -101,7 +101,8 @@ package struct Banner: Equatable, Identifiable, Sendable {
         guard settings.limitReset else { return [] }
         return snapshot.accounts.flatMap { entry in
             let upcoming = entry.limits.value.compactMap { limit in
-                limit.resetsAt.flatMap { $0 > now ? (at: $0, label: limit.label) : nil }
+                // the tools give an unused window a reset time that moves with every read
+                limit.resetsAt.flatMap { $0 > now && limit.used > 0 ? (at: $0, label: limit.label) : nil }
             }
             return Dictionary(grouping: upcoming) { Int(($0.at.timeIntervalSince1970 / 60).rounded(.down)) }
                 .sorted { $0.key < $1.key }
