@@ -6,7 +6,7 @@ folder="$(mktemp -d)"
 cp -R "$(dirname "$0")/../build/Sandbar.app" "$folder"
 "$folder/Sandbar.app/Contents/MacOS/Sandbar" &
 program=$!
-trap 'kill "$program"; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
+trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
 
 click() {
     osascript -e 'with timeout of 10 seconds' \
@@ -25,3 +25,7 @@ done
 sleep 1
 mkdir -p "$(dirname "$output")"
 screencapture -x "$output"
+if ! kill -0 "$program" 2>/dev/null; then
+    echo "Sandbar ended before its screenshot was taken" >&2
+    exit 1
+fi
