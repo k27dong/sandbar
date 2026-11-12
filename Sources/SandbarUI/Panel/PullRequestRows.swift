@@ -144,7 +144,12 @@ private struct PullRequestRow: View {
                         .frame(width: 16, height: 16)
                         .clipShape(.circle)
                     } else {
-                        state.image.foregroundStyle(isHighlighted ? Color.white : state.tint ?? .primary)
+                        let isDisc = state == .approved || state == .changesRequested
+                        state.image
+                            .foregroundStyle(isHighlighted ? Color.white : state.tint ?? .primary)
+                            .background {  // or the wallpaper tints the mark cut out of a disc, through the glass
+                                if isDisc, !isHighlighted { Circle().fill(Color.knockOut).padding(2) }
+                            }
                     }
                 }
                 .frame(width: 18)

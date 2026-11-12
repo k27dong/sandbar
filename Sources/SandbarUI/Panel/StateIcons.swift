@@ -150,6 +150,7 @@ extension Color {
     package static let usageCritical = Color(light: 0xFF3B30, dark: 0xFF453A)
     package static let warningText = Color(light: 0xA85200, dark: 0xFFB54A)
     package static let facePlaceholder = Color(light: 0x8E8E93, dark: 0x7C7C82)
+    package static let knockOut = Color(light: 0xFFFFFF, dark: 0x1F1F24)
     package static let claudeMark = Color(light: 0xD97757, dark: 0xE08A6C)
     package static let codexMark = Color(light: 0x1B1B1D, dark: 0xF2F2F2)
     package static let connected = Color(light: 0x28A745, dark: 0x30D158)
