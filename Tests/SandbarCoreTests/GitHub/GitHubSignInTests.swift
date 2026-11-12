@@ -1,5 +1,6 @@
 import Foundation
 import SandbarCore
+import SandbarTestSupport
 import Testing
 
 struct GitHubSignInTests {

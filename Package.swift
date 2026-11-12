@@ -3,7 +3,8 @@ import PackageDescription
 
 var targets: [Target] = [
     .target(name: "SandbarCore"),
-    .testTarget(name: "SandbarCoreTests", dependencies: ["SandbarCore"]),
+    .target(name: "SandbarTestSupport", path: "Tests/Support"),
+    .testTarget(name: "SandbarCoreTests", dependencies: ["SandbarCore", "SandbarTestSupport"]),
 ]
 
 #if os(macOS)
@@ -11,7 +12,8 @@ var targets: [Target] = [
     targets += [
         .target(name: "SandbarUI", dependencies: ["SandbarCore"], exclude: ["Resources"], swiftSettings: onMainActor),
         .executableTarget(name: "Sandbar", dependencies: ["SandbarUI"], swiftSettings: onMainActor),
-        .testTarget(name: "SandbarUITests", dependencies: ["SandbarUI"], swiftSettings: onMainActor),
+        .testTarget(
+            name: "SandbarUITests", dependencies: ["SandbarUI", "SandbarTestSupport"], swiftSettings: onMainActor),
     ]
 #endif
 
