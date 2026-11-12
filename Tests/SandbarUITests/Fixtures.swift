@@ -172,7 +172,6 @@ actor GitHubStub {
     }
 
     func settled() async throws {
-        try await Task.sleep(for: .milliseconds(20))
         try await eventually("every refresh ends") { self.made.allSatisfy { $0()?.isRefreshing != true } }
     }
 }

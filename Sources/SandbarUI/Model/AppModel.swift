@@ -46,7 +46,6 @@ import os
     package internal(set) var signInStep: [Tool: SignInStep] = [.claude: .idle, .codex: .idle]
     package let preferences: Preferences
     package var now: Date
-    package private(set) var isRefreshing = false
     package var openStacks: Set<Stack.ID> = []
     package var closePanel: () -> Void = {}
     package var hasNetwork = true {
@@ -76,6 +75,8 @@ import os
     @ObservationIgnored private var toolLookup: Task<Void, Never>?
     @ObservationIgnored private var signInLookup: Task<Void, Never>?
     private var owed: Snapshot.Parts = []
+    private var refreshesAsked = 0
+    private var isReading = false
     private var copiesCheckedAt: Date?
     private var renewing: Set<Tool> = []
     private var renewedAfterFailure: Set<Tool> = []
@@ -183,8 +184,8 @@ import os
                 },
             ], network: network)
         if showsSignIn { findSignIns() } else { findTools() }
+        refreshInBackground(.all)
         Task { [weak self] in
-            await self?.refresh(.all)
             while true {
                 do { try await Task.sleep(for: .seconds(5)) } catch { return }
                 guard let self else { return }
@@ -211,12 +212,14 @@ import os
     }
 
     package func refresh(_ parts: Snapshot.Parts) async {
+        refreshesAsked += 1
+        defer { refreshesAsked -= 1 }
         await toolLookupsEnded()
-        guard !isFixed, hasNetwork, !isAsleep, !isRefreshing else { return }
+        guard !isFixed, hasNetwork, !isAsleep, !isReading else { return }
         var parts = parts.union(owed)
         guard !parts.isEmpty else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
+        isReading = true
+        defer { isReading = false }
         repeat {
             owed = []
             let connection = gitHub
@@ -242,14 +245,25 @@ import os
     /// Refreshes after the refresh in flight, if there is one: a change of accounts or sign-in is never dropped.
     func owe(_ parts: Snapshot.Parts) {
         owed.formUnion(parts)
-        Task { await refresh([]) }
+        refreshInBackground([])
+    }
+
+    /// True from the moment a refresh is asked for until it has ended, the wait for a tool lookup included.
+    package var isRefreshing: Bool { refreshesAsked > 0 }
+
+    private func refreshInBackground(_ parts: Snapshot.Parts) {
+        refreshesAsked += 1
+        Task {
+            await refresh(parts)
+            refreshesAsked -= 1
+        }
     }
 
     package func panelOpened() {
         if isStarted { now = .now }
         if showsSignIn { findSignIns() }
         if let asked = snapshot.lastAsked, now.timeIntervalSince(asked) < 15 { return }
-        Task { await refresh(.all) }
+        refreshInBackground(.all)
     }
 
     package func open(_ pullRequest: PullRequest) {
@@ -394,7 +408,7 @@ import os
 
     private func refreshAtOnce() {
         if isStarted { now = .now }
-        Task { await refresh(.all) }
+        refreshInBackground(.all)
     }
 }
 

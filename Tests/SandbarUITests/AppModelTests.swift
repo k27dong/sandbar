@@ -28,6 +28,15 @@ import Testing
         }
     }
 
+    private actor Lookups {
+        private(set) var count = 0
+
+        func find(_ name: String) -> URL? {
+            if name == "gh" { count += 1 }  // every lookup asks for gh once
+            return nil
+        }
+    }
+
     private static func signedOutClaude() throws -> URL {
         try FakeTool.script(named: "claude", #"[ "$*" = "auth status" ] && echo '{"loggedIn": false}'; exit 1"#)
     }
@@ -156,6 +165,35 @@ import Testing
             try await eventually("the refresh ends") { !model.isRefreshing }
             #expect(await github.requests == 1)
             #expect(model.status == "Updated just now")
+        }
+    }
+
+    @Test func theFooterSaysUpdatingFromTheMomentARefreshIsAskedFor() async throws {
+        try await withHome { home in
+            let github = GitHubStub()
+            let lookup = HeldLookup()
+            let model = home.model(
+                findTool: { name in name == "claude" ? await lookup.find() : nil }, send: github.send)
+            #expect(model.status == "")
+            model.start()
+            #expect(model.status == "Updating…", "asked for, not started yet")
+            try await eventually("the lookup asks for Claude Code") { await lookup.asks == 1 }
+            #expect(model.status == "Updating…", "waiting for the tool lookup")
+            #expect(await github.requests == 0)
+            await lookup.answer(nil)
+            try await eventually("the refresh ends") { !model.isRefreshing }
+            #expect(model.status == "Updated just now")
+            #expect(await github.requests == 1)
+
+            model.findSignIns()
+            try await eventually("the second lookup asks for Claude Code") { await lookup.asks == 2 }
+            Task { await model.refresh(.pullRequests) }
+            try await eventually("the footer's own refresh waits for the lookup") { model.isRefreshing }
+            #expect(model.status == "Updating…")
+            #expect(await github.requests == 1)
+            await lookup.answer(nil)
+            try await eventually("the refresh ends") { !model.isRefreshing }
+            #expect(await github.requests == 2)
         }
     }
 
@@ -421,7 +459,9 @@ import Testing
             let old = try Fake.keep(try Fake.claude(), asSandbarsCopyOf: .claude, version: "2.1.400", in: home.files)
             try FileManager.default.setAttributes([.modificationDate: Self.now - 14 * 86_400], ofItemAtPath: old.path)
             let maker = Maker(version: "2.1.401", giving: try Fake.claude(ownSignIn: true))
-            let model = home.model(send: github.send, toolDownload: maker.download)
+            let lookups = Lookups()
+            let model = home.model(
+                findTool: { await lookups.find($0) }, send: github.send, toolDownload: maker.download)
             try await started(model, github)
             #expect(model.snapshot.accounts.first?.limits.trouble == .signedOut)
             #expect(await maker.asked == 0)
@@ -438,12 +478,13 @@ import Testing
             try FileManager.default.setAttributes([.modificationDate: Self.now - 14 * 86_400], ofItemAtPath: new.path)
             model.now = Self.now + 86_399
             try await ends("the refresh ends") { await model.refreshWhatIsDue() }
-            try await home.settled()
+            try await Task.sleep(for: .milliseconds(100))  // a renewal within the day would have asked the maker by now
             #expect(await maker.asked == 1, "within the day")
 
             model.now = Self.now + 86_400
             try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await eventually("the maker is asked again") { await maker.asked == 2 }
+            try await eventually("that renewal ends by looking for the tools again") { await lookups.count == 3 }
         }
     }
 
@@ -462,7 +503,7 @@ import Testing
             #expect(model.snapshot.accounts.first?.limits.value.map(\.label) == ["Week"])
 
             try await ends("the refresh ends") { await model.refreshWhatIsDue() }
-            try await home.settled()
+            try await Task.sleep(for: .milliseconds(100))  // a renewal would have asked the maker by now
             #expect(await maker.asked == 0)
         }
     }
@@ -478,15 +519,18 @@ import Testing
                 try Fake.claude(ownSignIn: true, usage: breaks), asSandbarsCopyOf: .claude, version: "2.1.400",
                 in: home.files)
             let maker = Maker()
-            let model = home.model(send: github.send, toolDownload: maker.download)
+            let lookups = Lookups()
+            let model = home.model(
+                findTool: { await lookups.find($0) }, send: github.send, toolDownload: maker.download)
             try await started(model, github)
             try await eventually("the maker is asked") { await maker.asked == 1 }
+            try await eventually("that renewal ends by looking for the tools again") { await lookups.count == 2 }
             try await home.settled()
             #expect(model.snapshot.accounts.first?.limits.trouble == .failed)
 
             model.now = Self.now + 400
             try await ends("the refresh ends") { await model.refresh(.all) }
-            try await home.settled()
+            try await Task.sleep(for: .milliseconds(100))  // a second renewal would have asked the maker by now
             #expect(await maker.asked == 1, "once while it stays broken")
 
             try Data().write(to: Fake.beside(copy, "mended"))
@@ -498,6 +542,7 @@ import Testing
             model.now = Self.now + 1_200
             try await ends("the refresh ends") { await model.refresh(.all) }
             try await eventually("the maker is asked again") { await maker.asked == 2 }
+            try await eventually("that renewal ends by looking for the tools again") { await lookups.count == 3 }
         }
     }
 
@@ -512,7 +557,9 @@ import Testing
             try FileManager.default.setAttributes([.modificationDate: Self.now - 14 * 86_400], ofItemAtPath: old.path)
             let answers = Gate()
             let maker = Maker(gate: answers)
-            let model = home.model(send: github.send, toolDownload: maker.download)
+            let lookups = Lookups()
+            let model = home.model(
+                findTool: { await lookups.find($0) }, send: github.send, toolDownload: maker.download)
             try await started(model, github)
             try await eventually("the failed reading asks the maker") { await maker.asked == 1 }
 
@@ -520,6 +567,7 @@ import Testing
             try await Task.sleep(for: .milliseconds(50))
             #expect(await maker.asked == 1, "the old copy's turn waits for the renewal in flight")
             await answers.open()
+            try await eventually("the renewal ends by looking for the tools again") { await lookups.count == 2 }
         }
     }
 
