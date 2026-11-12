@@ -121,7 +121,6 @@ package struct SettingsView: View {
         .formStyle(.grouped)
         .toggleStyle(.switch)
         .scrollDisabled(true)
-        .fixedSize(horizontal: false, vertical: true)
         .frame(width: 500)
     }
 }
