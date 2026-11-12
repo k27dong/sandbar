@@ -4,10 +4,13 @@ import SandbarUI
 import SwiftUI
 import Testing
 
+func stageFile(_ name: String) -> URL {
+    URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: "Stages/\(name).json")
+}
+
 func stage(_ name: String) -> Snapshot {
-    SavedSnapshot.read(
-        from: URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Stages/\(name).json"))
+    SavedSnapshot.read(from: stageFile(name))
 }
 
 @Suite(.serialized) struct PanelPictures {

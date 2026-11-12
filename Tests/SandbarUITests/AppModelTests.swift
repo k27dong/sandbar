@@ -13,10 +13,10 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
 struct AppModelTests {
     static let now = Date(timeIntervalSince1970: 1_794_506_400)  // 2026-11-12 18:00 UTC
 
-    nonisolated static let statuses: [(readSecondsAgo: TimeInterval, trouble: Snapshot.Trouble?, status: String)] = [
+    nonisolated static let statuses: [(readSecondsAgo: TimeInterval?, trouble: Snapshot.Trouble?, status: String)] = [
         (59, nil, "Updated just now"), (60, nil, "Updated 1m ago"), (840, nil, "Updated 14m ago"),
         (840, .offline, "Offline. Updated 14m ago"), (840, .failed, "Offline. Updated 14m ago"),
-        (840, .signedOut, "Updated 14m ago"),
+        (840, .signedOut, "Updated 14m ago"), (nil, nil, ""), (nil, .signedOut, ""), (nil, .offline, "Offline."),
     ]
 
     private actor GitHub {
@@ -199,15 +199,29 @@ struct AppModelTests {
     }
 
     @Test(arguments: statuses) func theStatusSaysHowOldTheListIs(
-        reading: (readSecondsAgo: TimeInterval, trouble: Snapshot.Trouble?, status: String)
+        reading: (readSecondsAgo: TimeInterval?, trouble: Snapshot.Trouble?, status: String)
     ) async throws {
         try await withDefaults { defaults in
             var snapshot = Snapshot.empty
-            snapshot.pullRequests.readAt = Self.now - reading.readSecondsAgo
+            snapshot.pullRequests.readAt = reading.readSecondsAgo.map { Self.now - $0 }
             snapshot.pullRequests.askedAt = Self.now
             snapshot.pullRequests.trouble = reading.trouble
             let model = AppModel(snapshot: snapshot, preferences: Preferences(defaults: defaults), now: Self.now)
             #expect(model.status == reading.status)
+            #expect(model.isOffline == reading.status.hasPrefix("Offline"))
         }
+    }
+
+    @Test func aShownSnapshotStaysAsItWasSaved() async throws {
+        let model = AppModel(showing: stageFile("offline"))
+        #expect(model.now == Self.now)
+        #expect(model.status == "Offline. Updated 14m ago")
+        #expect(model.list.openCount == 7)
+
+        await model.refresh(.all)
+        model.panelOpened()
+        await settled(model)
+        #expect(model.snapshot == stage("offline"))
+        #expect(model.now == Self.now)
     }
 }

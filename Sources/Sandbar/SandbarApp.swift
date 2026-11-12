@@ -31,13 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 FileHandle.standardError.write(Data("usage: Sandbar --show <a saved snapshot that exists>\n".utf8))
                 exit(64)
             }
-            show(AppModel(showing: URL(filePath: arguments[flag + 1])))
+            use(AppModel(showing: URL(filePath: arguments[flag + 1])))
         } else {
             Task {
                 let gh = await ToolLocation.find("gh")
                 let model = AppModel(
                     github: gh.map { gh in GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }) })
-                show(model)
+                use(model)
                 model.start()
             }
         }
@@ -50,7 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if panel.isOpen { model.panelOpened() }
     }
 
-    private func show(_ model: AppModel) {
+    private func use(_ model: AppModel) {
         model.closePanel = { [unowned self] in self.panel.close() }
         self.model = model
         showCount()

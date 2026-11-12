@@ -89,7 +89,12 @@ import os
         workspace.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
         network.pathUpdateHandler = { [weak self] path in
             let isOnline = path.status == .satisfied
-            Task { @MainActor in self?.networkChanged(isOnline: isOnline) }
+            Task { @MainActor in
+                guard let self else { return }
+                let regained = isOnline && !self.isOnline
+                self.isOnline = isOnline
+                if regained { self.refreshAtOnce() }
+            }
         }
         network.start(queue: .main)
         Task {
@@ -133,12 +138,6 @@ import os
     @objc private func didWake() {
         isAsleep = false
         refreshAtOnce()
-    }
-
-    private func networkChanged(isOnline: Bool) {
-        let regained = isOnline && !self.isOnline
-        self.isOnline = isOnline
-        if regained { refreshAtOnce() }
     }
 
     private func refreshAtOnce() {
