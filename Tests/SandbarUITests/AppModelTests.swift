@@ -4,180 +4,6 @@ import SandbarTestSupport
 import SandbarUI
 import Testing
 
-func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async throws {
-    let suite = "sandbar-tests-\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suite))
-    defer { defaults.removePersistentDomain(forName: suite) }
-    try await body(defaults)
-}
-
-func afterSetup(_ defaults: UserDefaults) -> Preferences {
-    let preferences = Preferences(defaults: defaults)
-    preferences.isSetUp = true
-    preferences.gitHubLogin = "kd"
-    return preferences
-}
-
-func eventually(_ what: Comment, _ isSo: @MainActor () async -> Bool) async throws {
-    let deadline = ContinuousClock.now + .seconds(10)
-    while !(await isSo()) {
-        try #require(ContinuousClock.now < deadline, what)
-        try await Task.sleep(for: .milliseconds(2))
-    }
-}
-
-@MainActor func ends(_ what: Comment, _ work: @escaping @MainActor () async -> Void) async throws {
-    @MainActor final class Mark {
-        var isSet = false
-    }
-    let ended = Mark()
-    Task {
-        await work()
-        ended.isSet = true
-    }
-    try await eventually(what) { ended.isSet }
-}
-
-actor GitHubStub {
-    static let deviceCode = """
-        {"device_code": "3584d83530557fdd1f46af8289938c8ef79f9dc5", "user_code": "WDJB-MJHT",
-         "verification_uri": "https://github.com/login/device", "expires_in": 900, "interval": 5}
-        """
-    static let token = #"{"access_token": "gho_madeup", "token_type": "bearer", "scope": "repo"}"#
-    static let pullRequests = """
-        {"data": {
-          "mine": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [
-            {"id": "PR_41250", "number": 41250, "title": "Read saved carts through one cart reader",
-             "url": "https://github.com/acme/storefront/pull/41250", "isDraft": false,
-             "createdAt": "2026-11-09T18:00:00Z", "updatedAt": "2026-11-12T16:00:00Z",
-             "author": {"login": "kd", "avatarUrl": "https://example.com/faces/kd.png"},
-             "repository": {"nameWithOwner": "acme/storefront"},
-             "baseRefName": "main", "headRefName": "cart-reader", "reviewDecision": "APPROVED",
-             "latestOpinionatedReviews": {"nodes": []}, "isInMergeQueue": false, "stack": null,
-             "stackEntry": null,
-             "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]}}]},
-          "reviewRequests": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": []}}}
-        """
-
-    private(set) var requests = 0
-    private(set) var tokens: [String] = []
-    private var tokenAnswers: [String] = []
-    private var lists = GitHubStub.pullRequests
-    private var held: CheckedContinuation<Void, Never>?
-    private var holdsNext = false
-    private var holdsTheLogin = false
-
-    nonisolated var send: GitHubClient.Send {
-        { request in try await self.answer(request) }
-    }
-
-    func holdNext() {
-        holdsNext = true
-    }
-
-    func holdTheLogin() {
-        holdsTheLogin = true
-    }
-
-    func release() {
-        held?.resume()
-        held = nil
-    }
-
-    func answerTheCodeWith(_ answers: String...) {
-        tokenAnswers = answers
-    }
-
-    func answerPullRequestsWith(_ answer: String) {
-        lists = answer
-    }
-
-    private func answer(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let address = try #require(request.url)
-        let body = String(decoding: request.httpBody ?? Data(), as: UTF8.self)
-        let answer: String
-        switch address.path {
-        case "/login/device/code":
-            answer = Self.deviceCode
-        case "/login/oauth/access_token":
-            answer = tokenAnswers.isEmpty ? #"{"error": "authorization_pending"}"# : tokenAnswers.removeFirst()
-        case _ where body.contains("viewer"):
-            tokens.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
-            if holdsTheLogin {
-                holdsTheLogin = false
-                await withCheckedContinuation { held = $0 }
-            }
-            answer = #"{"data": {"viewer": {"login": "kd"}}}"#
-        default:
-            requests += 1
-            tokens.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
-            if holdsNext {
-                holdsNext = false
-                await withCheckedContinuation { held = $0 }
-            }
-            answer = lists
-        }
-        let response = try #require(
-            HTTPURLResponse(url: address, statusCode: 200, httpVersion: nil, headerFields: nil))
-        return (Data(answer.utf8), response)
-    }
-}
-
-@MainActor final class Home {
-    let defaults: UserDefaults
-    let files: AppModel.Files
-    let keychainItem = "test-\(UUID().uuidString)"
-    private var made: [() -> AppModel?] = []
-
-    static let noDownload: (URL) -> ToolDownload = { folder in
-        ToolDownload(
-            folder: folder, fetch: { _ in throw URLError(.notConnectedToInternet) },
-            download: { _, _ in throw URLError(.notConnectedToInternet) }, sha256: { _ in "" })
-    }
-
-    init(defaults: UserDefaults, files: AppModel.Files) {
-        self.defaults = defaults
-        self.files = files
-    }
-
-    func model(
-        snapshot: Snapshot = .empty, findTool: @escaping @Sendable (String) async -> URL? = { _ in nil },
-        send: @escaping GitHubClient.Send = { _ in throw URLError(.notConnectedToInternet) },
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { _ in },
-        keychain: Keychain.Item? = nil, toolDownload: (URL) -> ToolDownload = Home.noDownload,
-        openAddress: @escaping (URL) -> Void = { _ in }
-    ) -> AppModel {
-        let model = AppModel(
-            snapshot: snapshot, preferences: Preferences(defaults: defaults), now: AppModelTests.now, files: files,
-            findTool: findTool, send: send, sleep: sleep, keychain: keychain ?? Keychain.Item(named: keychainItem),
-            toolDownload: toolDownload, openAddress: openAddress)
-        made.append { [weak model] in model }
-        return model
-    }
-
-    func settled() async throws {
-        try await Task.sleep(for: .milliseconds(20))
-        try await eventually("every refresh ends") { self.made.allSatisfy { $0()?.isRefreshing != true } }
-    }
-}
-
-/// A folder, defaults and a Keychain item of their own; unless `fresh`, setup is finished and GitHub is connected as kd.
-func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Void) async throws {
-    try await withDefaults { defaults in
-        let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { #expect(throws: Never.self) { try FileManager.default.removeItem(at: folder) } }
-        let home = Home(defaults: defaults, files: AppModel.Files(folder: folder))
-        defer { #expect(throws: Never.self) { try Keychain.delete(home.keychainItem) } }
-        if !fresh {
-            _ = afterSetup(defaults)
-            try Keychain.write("made-up-token", as: home.keychainItem)
-        }
-        try await body(home)
-        try await home.settled()  // a refresh still running would write into the folder after it is removed
-    }
-}
-
 @Suite(.serialized) struct AppModelTests {
     static let now = Date(timeIntervalSince1970: 1_794_506_400)  // 2026-11-12 18:00 UTC
 
@@ -737,6 +563,49 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             let model = AppModel(snapshot: snapshot, preferences: Preferences(defaults: defaults), now: Self.now)
             #expect(model.status == reading.status)
             #expect(model.isOffline == reading.status.hasPrefix("Offline"))
+        }
+    }
+
+    @Test func setupIsFinishedOnceAndRemembered() async throws {
+        try await withHome(fresh: true) { home in
+            let model = home.model()
+            #expect(!model.isSetUp)
+            model.finishSetup()
+            #expect(model.isSetUp)
+            #expect(home.model().isSetUp)
+        }
+    }
+
+    @Test func aShownSnapshotCountsAsSetUpWithNoSignInToAskFor() async throws {
+        let model = AppModel(showing: stageFile("day"))
+        #expect(model.isSetUp)
+        #expect(!model.needsGitHubSignIn)
+    }
+
+    @Test func theFooterCountsWhatIsConnected() async throws {
+        try await withHome(fresh: true) { home in
+            #expect(home.model().setupStatus == "Nothing connected")
+
+            Preferences(defaults: home.defaults).gitHubLogin = "kd"
+            #expect(home.model().setupStatus == "1 of 3 connected")
+
+            var snapshot = Snapshot.empty
+            snapshot.accounts = [
+                Snapshot.AccountLimits(
+                    account: Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil),
+                    limits: Snapshot.Reading(value: []))
+            ]
+            #expect(home.model(snapshot: snapshot).setupStatus == "2 of 3 connected")
+
+            snapshot.accounts += [
+                Snapshot.AccountLimits(
+                    account: Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil),
+                    limits: Snapshot.Reading(value: [])),
+                Snapshot.AccountLimits(
+                    account: Account(tool: .claude, name: "Personal", plan: "Max", profile: nil),
+                    limits: Snapshot.Reading(value: [])),
+            ]
+            #expect(home.model(snapshot: snapshot).setupStatus == "3 of 3 connected")
         }
     }
 
