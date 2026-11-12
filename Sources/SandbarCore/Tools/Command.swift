@@ -21,16 +21,16 @@ package enum Command {
     ) async throws -> Output {
         let output = Pipe()
         let error = Pipe()
-        let process = try launch(
+        let launched = try launch(
             program, arguments, environment, input: FileHandle.nullDevice, output: output, error: error)
         return try await withTaskCancellationHandler {
             try await withThrowingTaskGroup(of: Output?.self) { group in
                 group.addTask {
-                    async let standardOutput = readToEnd(output)
-                    async let standardError = readToEnd(error)
-                    let status = await process.exit.value
-                    return Output(
-                        status: status, standardOutput: await standardOutput, standardError: await standardError)
+                    async let standardOutput = collect(output.fileHandleForReading)
+                    async let standardError = collect(error.fileHandleForReading)
+                    let (printed, complained) = await (standardOutput, standardError)
+                    try Task.checkCancellation()
+                    return Output(status: await launched.exit.value, standardOutput: printed, standardError: complained)
                 }
                 group.addTask {
                     try await Task.sleep(for: timeout)
@@ -38,13 +38,13 @@ package enum Command {
                 }
                 defer { group.cancelAll() }
                 guard case let finished?? = try await group.next() else {
-                    process.end()
+                    await launched.end()
                     throw ToolError.timedOut
                 }
                 return finished
             }
         } onCancel: {
-            process.end()
+            Task { await launched.end() }
         }
     }
 
@@ -53,23 +53,28 @@ package enum Command {
     ) throws -> Running {
         let input = Pipe()
         let output = Pipe()
-        let process = try launch(
+        #if canImport(Darwin)
+            guard fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+        #endif
+        let launched = try launch(
             program, arguments, environment, input: input, output: output, error: FileHandle.nullDevice)
-        return Running(process: process, input: input.fileHandleForWriting, output: output.fileHandleForReading)
+        return Running(launched: launched, input: input.fileHandleForWriting, output: output.fileHandleForReading)
     }
 
     package final class Running: Sendable {
         package let lines: AsyncStream<String>
-        private let process: Launched
+        private let launched: Launched
         private let input: FileHandle
 
-        fileprivate init(process: Launched, input: FileHandle, output: FileHandle) {
-            self.process = process
+        fileprivate init(launched: Launched, input: FileHandle, output: FileHandle) {
+            self.launched = launched
             self.input = input
             lines = AsyncStream { continuation in
-                Thread.detachNewThread {
+                let reading = Task {
                     var pending: [UInt8] = []
-                    while case let chunk = output.availableData, !chunk.isEmpty {
+                    for await chunk in chunks(of: output) {
                         pending.append(contentsOf: chunk)
                         while let end = pending.firstIndex(of: 0x0A) {
                             continuation.yield(String(decoding: pending[..<end], as: UTF8.self))
@@ -79,19 +84,37 @@ package enum Command {
                     if !pending.isEmpty { continuation.yield(String(decoding: pending, as: UTF8.self)) }
                     continuation.finish()
                 }
+                continuation.onTermination = { _ in reading.cancel() }
             }
         }
 
+        deinit {
+            stop()
+        }
+
         package func send(_ line: String) throws {
+            #if os(Linux)
+                var brokenPipe = sigset_t()
+                var blocked = sigset_t()
+                sigemptyset(&brokenPipe)
+                sigaddset(&brokenPipe, SIGPIPE)
+                pthread_sigmask(SIG_BLOCK, &brokenPipe, &blocked)  // Linux has no per-pipe F_SETNOSIGPIPE
+                defer {
+                    var now = timespec()
+                    while sigtimedwait(&brokenPipe, nil, &now) == SIGPIPE {}  // queued by a write to an ended tool
+                    pthread_sigmask(SIG_SETMASK, &blocked, nil)
+                }
+            #endif
             try input.write(contentsOf: Data((line + "\n").utf8))
         }
 
         package func stop() {
-            process.end()
+            guard launched.process.isRunning else { return }  // a long-gone leader's number may belong to someone else
+            Task { [launched] in await launched.end() }
         }
 
         package func status() async -> Int32 {
-            await process.exit.value
+            await launched.exit.value
         }
     }
 
@@ -99,10 +122,20 @@ package enum Command {
         let process: Process
         let exit: Task<Int32, Never>
 
-        func end() {
-            guard process.isRunning else { return }
-            kill(-process.processIdentifier, SIGTERM)  // the group too: children can hold the output open
-            process.terminate()
+        func end() async {
+            deliver(SIGTERM)
+            let grace = Task { try await Task.sleep(for: .seconds(1)) }
+            Task {
+                _ = await exit.value
+                grace.cancel()
+            }
+            _ = await grace.result
+            deliver(SIGKILL)
+        }
+
+        private func deliver(_ signal: Int32) {
+            guard kill(-process.processIdentifier, signal) == -1, errno == ESRCH, process.isRunning else { return }
+            kill(process.processIdentifier, signal)  // it does not lead a group of its own
         }
     }
 
@@ -110,7 +143,15 @@ package enum Command {
         _ program: URL, _ arguments: [String], _ environment: [String: String],
         input: Any, output: Any, error: Any
     ) throws -> Launched {
-        signal(SIGPIPE, SIG_IGN)  // a tool that exits early must make `send` throw, not end Sandbar
+        #if os(Linux)
+            for case let pipe as Pipe in [input, output, error] {
+                for end in [pipe.fileHandleForReading, pipe.fileHandleForWriting] {
+                    guard fcntl(end.fileDescriptor, F_SETFD, FD_CLOEXEC) == 0 else {  // or another launch inherits it
+                        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+                    }
+                }
+            }
+        #endif
         let process = Process()
         process.executableURL = program
         process.arguments = arguments
@@ -118,6 +159,8 @@ package enum Command {
         process.standardInput = input
         process.standardOutput = output
         process.standardError = error
+        let (exits, exited) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
+        process.terminationHandler = { exited.yield($0.terminationStatus) }
         var unblocked = sigset_t()
         var blocked = sigset_t()
         sigemptyset(&unblocked)
@@ -128,22 +171,27 @@ package enum Command {
         } catch {
             throw ToolError.missing
         }
-        let exit = Task {
-            await waitApart {
-                process.waitUntilExit()
-                return process.terminationStatus
+        return Launched(process: process, exit: Task { await exits.first { _ in true }! })  // nothing cancels this task
+    }
+
+    private static func collect(_ handle: FileHandle) async -> Data {
+        var collected = Data()
+        for await chunk in chunks(of: handle) { collected.append(chunk) }
+        return collected
+    }
+
+    private static func chunks(of handle: FileHandle) -> AsyncStream<Data> {
+        AsyncStream { continuation in
+            handle.readabilityHandler = { handle in
+                let chunk = handle.availableData
+                if chunk.isEmpty {
+                    handle.readabilityHandler = nil
+                    continuation.finish()
+                } else {
+                    continuation.yield(chunk)
+                }
             }
-        }
-        return Launched(process: process, exit: exit)
-    }
-
-    private static func readToEnd(_ pipe: Pipe) async -> Data {
-        await waitApart { pipe.fileHandleForReading.readDataToEndOfFile() }
-    }
-
-    private static func waitApart<Value: Sendable>(_ work: @escaping @Sendable () -> Value) async -> Value {
-        await withCheckedContinuation { continuation in
-            Thread.detachNewThread { continuation.resume(returning: work()) }  // blocking waits starve shared threads
+            continuation.onTermination = { _ in handle.readabilityHandler = nil }  // a grandchild may keep it open
         }
     }
 }
