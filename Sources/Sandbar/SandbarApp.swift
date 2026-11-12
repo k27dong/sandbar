@@ -72,7 +72,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     guard let self else { return }
                     switch opens {
                     case .pullRequest(let address): NSWorkspace.shared.open(address)
-                    case .panel: if !panel.isOpen { togglePanel() }
+                    case .panel:
+                        Task {
+                            let deadline = ContinuousClock.now + .seconds(5)  // the item may not be placed yet
+                            while statusItem.button?.window?.screen == nil, ContinuousClock.now < deadline {
+                                do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+                            }
+                            if !panel.isOpen { togglePanel() }
+                        }
                     }
                 })
             use(model)

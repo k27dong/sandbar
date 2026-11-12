@@ -31,31 +31,27 @@ package struct BannerDelivery: Sendable {
 private final class SystemBanners: NSObject, UNUserNotificationCenterDelegate {
     private nonisolated static let addressKey = "pullRequest"
     private let onOpen: @MainActor (Banner.Opens) -> Void
-    private var scheduling: Task<Void, Never>?
+    private var saidRefused = false
 
     init(onOpen: @escaping @MainActor (Banner.Opens) -> Void) {
         self.onOpen = onOpen
     }
 
     func deliver(_ banners: [Banner]) async {
+        guard await isAllowed() else { return }
         for banner in banners { await add(banner) }
     }
 
     func schedule(_ banners: [Banner]) async {
-        let earlier = scheduling
-        let current = Task {
-            await earlier?.value  // an earlier list that ends late must not undo this one
-            let center = UNUserNotificationCenter.current()
-            let kept = Set(banners.map(\.id))
-            let pending = await center.pendingNotificationRequests()
-            let stale = pending.filter { request in
-                request.trigger != nil && !kept.contains(request.identifier)  // a banner for now has no trigger
-            }
-            center.removePendingNotificationRequests(withIdentifiers: stale.map(\.identifier))
-            for banner in banners { await add(banner) }
+        let center = UNUserNotificationCenter.current()
+        let kept = Set(banners.map(\.id))
+        let pending = await center.pendingNotificationRequests()
+        let stale = pending.filter { request in
+            request.trigger != nil && !kept.contains(request.identifier)  // a banner for now has no trigger
         }
-        scheduling = current
-        await current.value
+        center.removePendingNotificationRequests(withIdentifiers: stale.map(\.identifier))
+        guard await isAllowed() else { return }
+        for banner in banners { await add(banner) }
     }
 
     func askPermission() async {
@@ -65,6 +61,15 @@ private final class SystemBanners: NSObject, UNUserNotificationCenterDelegate {
         } catch {
             AppModel.log.error("Permission for banners was not asked: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    /// Asks macOS each time, so a switch turned on later in System Settings counts at once.
+    private func isAllowed() async -> Bool {
+        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        let isAllowed = status == .authorized || status == .provisional
+        if !isAllowed, !saidRefused { AppModel.log.notice("Banners are not allowed for Sandbar; none is handed over") }
+        saidRefused = !isAllowed
+        return isAllowed
     }
 
     private func add(_ banner: Banner) async {
@@ -77,7 +82,8 @@ private final class SystemBanners: NSObject, UNUserNotificationCenterDelegate {
         }
         var trigger: UNCalendarNotificationTrigger?
         if let moment = banner.deliverAt {
-            let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: moment)
+            let parts = Calendar.current.dateComponents(
+                [.timeZone, .year, .month, .day, .hour, .minute, .second], from: moment)  // the zone pins the moment
             trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
         }
         do {
