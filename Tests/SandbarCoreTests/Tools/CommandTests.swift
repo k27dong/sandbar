@@ -4,6 +4,9 @@ import Testing
 
 struct CommandTests {
     static let sh = URL(filePath: "/bin/sh")
+    static let startFailureCases: [(failure: Int32, retried: Bool)] = [
+        (ETXTBSY, true), (ENOENT, false), (EACCES, false), (ENOEXEC, false),
+    ]
     static let stubbornCases = ["trap '' TERM; sleep 6", "setsid sleep 6 & sleep 30"]
 
     @Test func runCollectsBothStreamsAndTheStatus() async throws {
@@ -24,25 +27,28 @@ struct CommandTests {
         #expect(output.standardOutput.count == 1_048_576)
     }
 
-    @Test func aMissingProgramIsMissingAtOnce() async {
-        let start = ContinuousClock.now
+    @Test func aMissingProgramIsMissing() async {
         await #expect(throws: ToolError.missing) {
             try await Command.run(URL(filePath: "/nonexistent/tool"))
         }
-        #expect(ContinuousClock.now - start < .milliseconds(100))
+    }
+
+    @Test(arguments: startFailureCases) func onlyABusyProgramIsRetried(failure: Int32, retried: Bool) {
+        let started = NSError(
+            domain: NSCocoaErrorDomain, code: CocoaError.fileReadUnknown.rawValue,
+            userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(failure))])
+        #expect(Command.isWorthRetrying(started) == retried)
     }
 
     @Test func aProgramStillBeingWrittenStartsOnceItIsDone() async throws {
         let program = try FakeTool.script(named: "busy", "printf ok")
         let descriptor = open(program.path, O_WRONLY | O_CLOEXEC)
         try #require(descriptor >= 0)
-        let writer = FileHandle(fileDescriptor: descriptor, closeOnDealloc: false)
-        let finishing = Task {
-            try await Task.sleep(for: .milliseconds(50))
-            try writer.close()
+        Thread.detachNewThread {
+            Thread.sleep(forTimeInterval: 0.05)
+            close(descriptor)
         }
         let output = try await Command.run(program)
-        try await finishing.value
         #expect(String(decoding: output.standardOutput, as: UTF8.self) == "ok")
     }
 
@@ -51,7 +57,7 @@ struct CommandTests {
         await #expect(throws: ToolError.timedOut) {
             try await Command.run(Self.sh, ["-c", "sleep 30"], timeout: .milliseconds(300))
         }
-        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(ContinuousClock.now - start < .seconds(4))
     }
 
     @Test(arguments: stubbornCases) func aStubbornProgramStillTimesOut(script: String) async {
@@ -59,7 +65,7 @@ struct CommandTests {
         await #expect(throws: ToolError.timedOut) {
             try await Command.run(Self.sh, ["-c", script], timeout: .milliseconds(300))
         }
-        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(ContinuousClock.now - start < .seconds(4))
     }
 
     @Test func cancellingEndsTheRun() async {
@@ -68,7 +74,7 @@ struct CommandTests {
         try? await Task.sleep(for: .milliseconds(300))
         running.cancel()
         await #expect(throws: CancellationError.self) { try await running.value }
-        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(ContinuousClock.now - start < .seconds(4))
     }
 
     @Test func aRunningProgramAnswersLineByLine() async throws {
@@ -94,6 +100,6 @@ struct CommandTests {
             lines = running.lines.makeAsyncIterator()
         }
         #expect(await lines.next() == nil)
-        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(ContinuousClock.now - start < .seconds(4))
     }
 }

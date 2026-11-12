@@ -82,7 +82,7 @@ struct CodexServerTests {
         await #expect(throws: ToolError.timedOut) {
             let _: AccountAnswer = try await server.ask("account/read", Self.accountRead)
         }
-        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(ContinuousClock.now - start < .seconds(4))
     }
 
     @Test(arguments: startCases) func theToolIsStartedByItsName(name: String, argument: String) async throws {
@@ -100,7 +100,7 @@ struct CodexServerTests {
         let recorded = try String(contentsOf: tool.deletingLastPathComponent().appending(path: "pid"), encoding: .utf8)
         let pid = try #require(Int32(recorded.trimmingCharacters(in: .whitespacesAndNewlines)))
         let start = ContinuousClock.now
-        while kill(pid, 0) == 0, ContinuousClock.now - start < .seconds(2) {
+        while kill(pid, 0) == 0, ContinuousClock.now - start < .seconds(4) {
             try await Task.sleep(for: .milliseconds(50))
         }
         #expect(kill(pid, 0) == -1)

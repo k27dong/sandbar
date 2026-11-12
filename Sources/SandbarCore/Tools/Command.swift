@@ -21,8 +21,17 @@ package enum Command {
     ) async throws -> Output {
         let output = try newPipe()
         let error = try newPipe()
-        let launched = try launch(
-            program, arguments, environment, input: FileHandle.nullDevice, output: output, error: error)
+        var started: Launched?
+        for attempt in 1...10 where started == nil {
+            do {
+                started = try launch(
+                    program, arguments, environment, input: FileHandle.nullDevice, output: output, error: error)
+            } catch is FileBusy {
+                guard attempt < 10 else { throw ToolError.missing }
+                try await Task.sleep(for: .milliseconds(25))  // someone still holds the new file open
+            }
+        }
+        guard let launched = started else { throw ToolError.missing }
         return try await withTaskCancellationHandler {
             try await withThrowingTaskGroup(of: Output?.self) { group in
                 group.addTask {
@@ -58,8 +67,13 @@ package enum Command {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
         #endif
-        let launched = try launch(
-            program, arguments, environment, input: input, output: output, error: FileHandle.nullDevice)
+        let launched: Launched
+        do {
+            launched = try launch(
+                program, arguments, environment, input: input, output: output, error: FileHandle.nullDevice)
+        } catch is FileBusy {
+            throw ToolError.missing  // a synchronous start cannot wait without blocking a pool thread
+        }
         return Running(launched: launched, input: input.fileHandleForWriting, output: output.fileHandleForReading)
     }
 
@@ -144,37 +158,38 @@ package enum Command {
         input: Any, output: Any, error: Any
     ) throws -> Launched {
         let (exits, exited) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
-        var attempt = 0
-        while true {
-            attempt += 1
-            let process = Process()
-            process.executableURL = program
-            process.arguments = arguments
-            process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
-            process.standardInput = input
-            process.standardOutput = output
-            process.standardError = error
-            process.terminationHandler = { exited.yield($0.terminationStatus) }
-            do {
-                try launching.withLock {
-                    var unblocked = sigset_t()
-                    var blocked = sigset_t()
-                    sigemptyset(&unblocked)
-                    pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // inherited; pool threads block TERM
-                    defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
-                    try process.run()
-                }
-                let exit = Task { await exits.first { _ in true }! }  // nothing cancels this task
-                return Launched(process: process, exit: exit)
-            } catch let failure as NSError {
-                let cause = failure.userInfo[NSUnderlyingErrorKey] as? NSError ?? failure
-                guard cause.domain == NSPOSIXErrorDomain, cause.code == Int(ETXTBSY), attempt < 10 else {
-                    throw ToolError.missing
-                }
-                Thread.sleep(forTimeInterval: 0.025)  // a launch elsewhere still holds the just-written file open
+        let process = Process()
+        process.executableURL = program
+        process.arguments = arguments
+        process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+        process.standardInput = input
+        process.standardOutput = output
+        process.standardError = error
+        process.terminationHandler = { exited.yield($0.terminationStatus) }
+        do {
+            try launching.withLock {
+                var unblocked = sigset_t()
+                var blocked = sigset_t()
+                sigemptyset(&unblocked)
+                pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // inherited; pool threads block TERM
+                defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
+                try process.run()
             }
+        } catch {
+            if isWorthRetrying(error) { throw FileBusy() }
+            throw ToolError.missing
         }
+        let exit = Task { await exits.first { _ in true }! }  // nothing cancels this task
+        return Launched(process: process, exit: exit)
     }
+
+    package static func isWorthRetrying(_ startFailure: any Error) -> Bool {
+        let failure = startFailure as NSError
+        let cause = failure.userInfo[NSUnderlyingErrorKey] as? NSError ?? failure
+        return cause.domain == NSPOSIXErrorDomain && cause.code == Int(ETXTBSY)
+    }
+
+    private struct FileBusy: Error {}
 
     private static let launching = NSLock()  // on Linux a program inherits every descriptor made while it is spawned
 
