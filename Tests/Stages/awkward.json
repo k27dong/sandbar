@@ -1,0 +1,204 @@
+{
+  "snapshot" : {
+    "accounts" : [
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000001",
+          "name" : "Work",
+          "plan" : "Enterprise",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "dollars" : 3120,
+              "resetsAt" : "2026-12-02T03:00:00Z",
+              "used" : 0.52,
+              "window" : {
+                "month" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000002",
+          "name" : "Personal",
+          "plan" : "Ultra",
+          "profile" : "file:\/\/\/Users\/kd\/Library\/Application%20Support\/Sandbar\/Profiles\/5A0DBA20-0000-4000-8000-000000000002\/",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-14T22:00:00Z",
+              "used" : 0.41,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000003",
+          "name" : "Codex",
+          "plan" : "Business",
+          "tool" : "codex"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-12T21:12:00Z",
+              "used" : 0.12,
+              "window" : {
+                "fiveHours" : {
+
+                }
+              }
+            },
+            {
+              "resetsAt" : "2026-11-18T15:00:00Z",
+              "used" : 0.04,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "pullRequests" : {
+      "askedAt" : "2026-11-12T18:00:00Z",
+      "readAt" : "2026-11-12T18:00:00Z",
+      "value" : {
+        "hiddenOrganizations" : [
+
+        ],
+        "mine" : [
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2025-11-12T18:00:00Z",
+            "headBranch" : "move-the-header-and",
+            "id" : "PR_acme\/tools#7",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 7,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Move the header and the side rail into one navigation package and keep the old header on wholesale accounts too",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/7"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-12T17:55:00Z",
+            "decision" : "approved",
+            "headBranch" : "ship-the-saved-cart",
+            "id" : "PR_acme\/storefront#41250",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41250,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T17:55:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "🚀 Ship the saved cart 🛒 to every shopper 🎉",
+            "updatedAt" : "2026-11-12T17:55:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41250"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-10-13T18:00:00Z",
+            "headBranch" : "delivery-date-on-summary",
+            "id" : "PR_acme\/api#123456",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 123456,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "أظهر تاريخ التسليم في ملخص الطلب",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/123456"
+          }
+        ],
+        "reviewRequests" : [
+          {
+            "author" : {
+              "login" : "priya"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T15:00:00Z",
+            "headBranch" : "fix-the-weather-word",
+            "id" : "PR_acme\/storefront#123456",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 123456,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Fix the weather word\non the delivery estimate",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/123456"
+          }
+        ]
+      }
+    }
+  },
+  "version" : 1
+}
