@@ -16,23 +16,31 @@ package final class PanelWindow {
     package var isOpen: Bool { panel != nil }
     package var onClose: (() -> Void)?
 
-    package func toggle(under button: NSStatusBarButton, content: some View) {
+    package func toggle(under button: NSStatusBarButton, content: (_ maxHeight: CGFloat) -> some View) {
         if isOpen {
             close()
             return
         }
-        guard let buttonWindow = button.window else { return }
+        guard let buttonWindow = button.window, let screen = buttonWindow.screen else { return }
         itemWindow = buttonWindow
 
-        let hosting = NSHostingView(rootView: content)
+        let item = buttonWindow.frame  // as tall as the menu bar, so its bottom edge is the bar's
+        let top = item.minY - 4
+        let frame = { (size: CGSize) in
+            NSRect(x: item.maxX - size.width, y: top - size.height, width: size.width, height: size.height)
+        }
+        let hosting = NSHostingView(
+            rootView: content(top - screen.visibleFrame.minY - 12)
+                .onGeometryChange(for: CGSize.self) {
+                    $0.size
+                } action: { [weak self] size in
+                    self?.panel?.setFrame(frame(size), display: true)
+                })
         let size = hosting.fittingSize
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
-        let item = buttonWindow.frame  // as tall as the menu bar, so its bottom edge is the bar's
         let panel = KeyPanel(
-            contentRect: NSRect(
-                x: item.maxX - size.width, y: item.minY - 4 - size.height, width: size.width, height: size.height),
-            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            contentRect: frame(size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .popUpMenu
         panel.isOpaque = false
         panel.backgroundColor = .clear

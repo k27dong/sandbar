@@ -54,6 +54,11 @@ package enum Icon: String, CaseIterable {
         7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 \
         1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"/></svg>
         """
+    case fewer = """
+        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="6" viewBox="0 0 9 6">\
+        <path d="M1 5l3.5-3.5L8 5" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" \
+        stroke-linejoin="round"/></svg>
+        """
     case refresh = """
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 13 13">\
         <path d="M11 6.5A4.5 4.5 0 1 1 9.4 3" fill="none" stroke="#000" stroke-width="1.3" stroke-linecap="round"/>\
@@ -108,7 +113,7 @@ package enum Icon: String, CaseIterable {
         case .checkRunning: .gitHubRun
         case .claude: .claudeMark
         case .codex: .codexMark
-        case .stack, .refresh, .gear, .gitHub: nil
+        case .stack, .fewer, .refresh, .gear, .gitHub: nil
         }
     }
 }
@@ -122,6 +127,8 @@ extension Color {
     package static let gitHubRun = Color(light: 0xBF8700, dark: 0xD29922)
     package static let usageWarning = Color(light: 0xF08A00, dark: 0xFF9F0A)
     package static let usageCritical = Color(light: 0xFF3B30, dark: 0xFF453A)
+    package static let warningText = Color(light: 0xA85200, dark: 0xFFB54A)
+    package static let facePlaceholder = Color(light: 0x8E8E93, dark: 0x7C7C82)
     package static let claudeMark = Color(light: 0xD97757, dark: 0xE08A6C)
     package static let codexMark = Color(light: 0x1B1B1D, dark: 0xF2F2F2)
 
