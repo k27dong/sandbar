@@ -59,6 +59,7 @@ private final class PaneTabs: NSTabViewController {
         for pane in SettingsWindow.Pane.allCases {
             let host = NSHostingController(rootView: SettingsView(pane: pane, version: version).environment(model))
             host.sizingOptions = .preferredContentSize
+            host.title = pane.title  // the tabs give the selected one's title to the window
             let item = NSTabViewItem(viewController: host)
             item.label = pane.title
             item.image = NSImage(systemSymbolName: pane.symbol, accessibilityDescription: nil)
@@ -87,7 +88,6 @@ private final class PaneTabs: NSTabViewController {
 
     private func fit() {
         guard let window = view.window, let pane = tabViewItems[selectedTabViewItemIndex].viewController else { return }
-        window.title = SettingsWindow.Pane.allCases[selectedTabViewItemIndex].title
         let size = pane.preferredContentSize
         guard size.height > 0 else { return }
         let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
