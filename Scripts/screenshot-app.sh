@@ -34,7 +34,9 @@ on run arguments
     set {program, wanted, action} to arguments
     with timeout of 20 seconds
         tell application "System Events" to tell (first process whose unix id is (program as integer))
-            repeat with candidate in (entire contents of window 1)
+            set everything to entire contents of window 1  # a list walked in place is asked for again at each turn
+            repeat with n from 1 to count of everything
+                set candidate to item n of everything
                 set labels to {}
                 try
                     set end of labels to name of candidate
