@@ -6,6 +6,21 @@ import SandbarUI
 import Testing
 
 @Suite(.serialized) struct ToolAccountTests {
+    nonisolated static let signOuts: [(signOut: String, isRecorded: Bool)] = [
+        (#"echo "$CLAUDE_CONFIG_DIR" > "$(dirname "$0")/signed-out""#, true), ("echo refused >&2; exit 1", false),
+    ]
+
+    private static func claudeThatDoesNotStaySignedIn(status: String, signOut: String) throws -> URL {
+        try FakeTool.script(
+            named: "claude",
+            #"""
+            case "$*" in
+              "auth status") \#(status) ;;
+              "auth logout") [ -d "$CLAUDE_CONFIG_DIR" ] || exit 4; \#(signOut) ;;
+            esac
+            """#)
+    }
+
     @Test func aToolSignedInOnThisMacCanBeUsed() async throws {
         try await withHome(fresh: true) { home in
             let model = home.model(findTool: Fake.found(["claude": try Fake.claude(ownSignIn: true)]))
@@ -203,6 +218,42 @@ import Testing
             #expect(try entries(of: home.files.profiles).isEmpty)
             #expect(!FileManager.default.fileExists(atPath: home.files.accounts.path))
             #expect(!model.isSigningIn)
+        }
+    }
+
+    @Test(arguments: signOuts) func aFinishedSignInThatIsNotKeptIsSignedOutBeforeItsFolderGoes(
+        signOut: String, isRecorded: Bool
+    ) async throws {
+        try await withHome { home in
+            let claude = try Self.claudeThatDoesNotStaySignedIn(
+                status: #"echo '{"loggedIn": false}'; exit 1"#, signOut: signOut)
+            let model = home.model(findTool: Fake.found(["claude": claude]))
+            model.start()
+            try await ends("the sign-in ends") { await model.addAccount(.claude) }
+            #expect(model.signInStep[.claude] == .failed("Signed out."))
+            #expect(model.accounts.isEmpty)
+            #expect(try entries(of: home.files.profiles).isEmpty)
+            #expect(FileManager.default.fileExists(atPath: Fake.beside(claude, "signed-out").path) == isRecorded)
+        }
+    }
+
+    @Test func cancelWhileAFinishedSignInIsLookedAtStillSignsItOut() async throws {
+        try await withHome { home in
+            let claude = try Self.claudeThatDoesNotStaySignedIn(
+                status: #"touch "$(dirname "$0")/asked"; sleep 15"#,
+                signOut: #"sleep 0.2; echo "$CLAUDE_CONFIG_DIR" > "$(dirname "$0")/signed-out""#)
+            let model = home.model(findTool: Fake.found(["claude": claude]))
+            model.start()
+            Task { await model.addAccount(.claude) }
+            try await eventually("the finished sign-in is looked at") {
+                FileManager.default.fileExists(atPath: Fake.beside(claude, "asked").path)
+            }
+
+            model.cancelSignIn(.claude)
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+            #expect(model.signInStep[.claude] == .idle)
+            #expect(try entries(of: home.files.profiles).isEmpty)
+            #expect(FileManager.default.fileExists(atPath: Fake.beside(claude, "signed-out").path))
         }
     }
 
@@ -562,7 +613,6 @@ import Testing
 
     @Test func anUnreadableAccountsFileIsMovedAsideWithItsNote() async throws {
         try await withHome { home in
-            try Data("an older unreadable file".utf8).write(to: home.files.unreadableAccounts)
             try Data("not accounts".utf8).write(to: home.files.accounts)
             let model = home.model(findTool: Fake.found(["claude": try Fake.claude(ownSignIn: true)]))
             #expect(model.accountsNote == nil)
@@ -576,6 +626,23 @@ import Testing
             try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             #expect(try Account.load(from: home.files.accounts).map(\.title) == ["Acme Robotics (Enterprise)"])
             #expect(model.accountsNote == "Saved accounts could not be read.")
+        }
+    }
+
+    @Test func anOlderUnreadableFileIsNeverDeleted() async throws {
+        try await withHome { home in
+            try Data("an older unreadable file".utf8).write(to: home.files.unreadableAccounts)
+            try Data("not accounts".utf8).write(to: home.files.accounts)
+            let model = home.model(findTool: Fake.found(["claude": try Fake.claude(ownSignIn: true)]))
+            model.start()
+            #expect(model.accountsNote == "Saved accounts could not be read.")
+            #expect(
+                try String(contentsOf: home.files.unreadableAccounts, encoding: .utf8) == "an older unreadable file")
+
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
+            #expect(model.accounts.isEmpty)
+            #expect(model.signInStep[.claude] == .failed("Saved accounts could not be read."))
+            #expect(try String(contentsOf: home.files.accounts, encoding: .utf8) == "not accounts")
         }
     }
 

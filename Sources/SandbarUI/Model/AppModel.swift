@@ -155,9 +155,6 @@ import os
             accounts = []
             accountsNote = "Saved accounts could not be read."
             do {
-                if FileManager.default.fileExists(atPath: files.unreadableAccounts.path) {
-                    try FileManager.default.removeItem(at: files.unreadableAccounts)
-                }
                 try FileManager.default.moveItem(at: files.accounts, to: files.unreadableAccounts)
             } catch {
                 keepsUnreadableAccounts = true

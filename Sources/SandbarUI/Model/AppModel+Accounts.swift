@@ -179,10 +179,21 @@ extension AppModel {
                             Task { await pending.cancel() }  // the tool is told first; its end then ends the wait
                         }
                     }
-                    try await add(account, signedInThrough: program)
                 } catch {
-                    if let folder = try account.profileToForget(in: files.profiles) {
-                        try FileManager.default.removeItem(at: folder)
+                    try await account.forget(tool: nil, profiles: files.profiles)
+                    throw error
+                }
+                do {
+                    try await add(account, signedInThrough: program)
+                } catch {  // the tool has signed in by now, and may keep that sign-in outside the folder
+                    let signOut = Task {  // of its own: a Cancel would end the sign-out with this task
+                        try await account.forget(tool: program, profiles: files.profiles)
+                    }
+                    do {
+                        try await signOut.value
+                    } catch let failure {
+                        Self.log.error("A sign-in that was not kept stayed signed in: \(String(describing: failure))")
+                        try await account.forget(tool: nil, profiles: files.profiles)
                     }
                     throw error
                 }
