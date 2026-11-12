@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 package struct PanelView: View {
+    @State private var gearHovered = false
+
     package init() {}
 
     package var body: some View {
@@ -28,6 +30,8 @@ package struct PanelView: View {
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
                 .foregroundStyle(.secondary)
+                .background(.quinary.opacity(gearHovered ? 1 : 0), in: .rect(cornerRadius: 6))
+                .onHover { gearHovered = $0 }
             }
             .padding(EdgeInsets(top: 6, leading: 10, bottom: 4, trailing: 10))
         }
