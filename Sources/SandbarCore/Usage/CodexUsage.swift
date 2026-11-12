@@ -32,11 +32,17 @@ package enum CodexUsage {
     private static func limits(in answer: Answer) -> [UsageLimit] {
         [answer.rateLimits.primary, answer.rateLimits.secondary].compactMap { $0 }.map { window in
             UsageLimit(
-                window: window.windowDurationMins == 300
-                    ? .fiveHours
-                    : window.windowDurationMins == 10_080 ? .week : .other("\(window.windowDurationMins / 60)h"),
+                window: Self.window(minutes: window.windowDurationMins),
                 used: window.usedPercent / 100,
                 resetsAt: window.resetsAt.map { Date(timeIntervalSince1970: $0) })
+        }
+    }
+
+    private static func window(minutes: Int) -> UsageLimit.Window {
+        switch minutes {
+        case 300: .fiveHours
+        case 10_080: .week
+        default: .other("\(minutes / 60)h")
         }
     }
 

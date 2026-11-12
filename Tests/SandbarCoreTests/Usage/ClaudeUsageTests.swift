@@ -12,6 +12,10 @@ struct ClaudeUsageTests {
     static let weeklyFable =
         #"{"kind": "weekly_scoped", "group": "weekly", "percent": 12, "resets_at": "2026-11-15T22:00:00.323524+00:00", "scope": {"model": {"display_name": "Fable"}, "surface": null}, "severity": "normal", "is_active": false}"#
 
+    static let shortWindowCases: [(group: String, window: UsageLimit.Window)] = [
+        ("five_hour", .fiveHours), ("session", .fiveHours),
+    ]
+
     static func output(limits: [String], extraUsage: String) -> Data {
         Data(
             """
@@ -40,6 +44,13 @@ struct ClaudeUsageTests {
         #expect(abs(reset.timeIntervalSince1970 - 1_794_780_000.323) < 0.001)
     }
 
+    @Test func limitsKeepTheirOrderWhateverTheirShares() throws {
+        let fable = Self.weeklyFable.replacing(#""percent": 12"#, with: #""percent": 62"#)
+        let limits = try ClaudeUsage.limits(
+            inReport: Self.output(limits: [Self.weeklyAll, fable], extraUsage: Self.noExtraUsage))
+        #expect(limits.map(\.used) == [0.37, 0.62])
+    }
+
     @Test func theMonthlyBudgetFollowsTheLimits() throws {
         let limits = try ClaudeUsage.limits(
             inReport: Self.output(limits: [Self.weeklyAll], extraUsage: Self.paidByUse))
@@ -56,8 +67,7 @@ struct ClaudeUsageTests {
         #expect(limits.map(\.window) == [.other("mystery_group")])
     }
 
-    @Test(arguments: [("five_hour", UsageLimit.Window.fiveHours), ("session", .fiveHours)])
-    func theShortWindowGroups(group: String, window: UsageLimit.Window) throws {
+    @Test(arguments: shortWindowCases) func theShortWindowGroups(group: String, window: UsageLimit.Window) throws {
         let limit = Self.weeklyAll.replacing(#""weekly""#, with: "\"\(group)\"")
         let limits = try ClaudeUsage.limits(inReport: Self.output(limits: [limit], extraUsage: Self.noExtraUsage))
         #expect(limits.map(\.window) == [window])
@@ -83,9 +93,35 @@ struct ClaudeUsageTests {
 
     @Test func aLimitWithoutAShareIsNotUnderstood() {
         let limit = Self.weeklyAll.replacing(#""percent": 37, "#, with: "")
-        #expect(throws: ToolError.self) {
-            try ClaudeUsage.limits(inReport: Self.output(limits: [limit], extraUsage: Self.noExtraUsage))
+        let printed = Self.output(limits: [limit], extraUsage: Self.noExtraUsage)
+        #expect(throws: ToolError.notUnderstood(String(decoding: printed, as: UTF8.self))) {
+            try ClaudeUsage.limits(inReport: printed)
         }
+    }
+
+    @Test func aBudgetOfZeroGivesNoMonth() throws {
+        let extra = Self.paidByUse.replacing(#""monthly_limit": 500000"#, with: #""monthly_limit": 0"#)
+        #expect(try ClaudeUsage.limits(inReport: Self.output(limits: [], extraUsage: extra)) == [])
+    }
+
+    @Test func aBudgetWithoutWhatWasSpentIsNotUnderstood() {
+        let extra = Self.paidByUse.replacing(#""used_credits": 312055"#, with: #""used_credits": null"#)
+        let printed = Self.output(limits: [], extraUsage: extra)
+        #expect(throws: ToolError.notUnderstood(String(decoding: printed, as: UTF8.self))) {
+            try ClaudeUsage.limits(inReport: printed)
+        }
+    }
+
+    @Test func aBudgetThatIsNotEnabledGivesNoMonth() throws {
+        let extra = Self.paidByUse.replacing(#""is_enabled": true"#, with: #""is_enabled": false"#)
+        #expect(try ClaudeUsage.limits(inReport: Self.output(limits: [], extraUsage: extra)) == [])
+    }
+
+    @Test func strayTextLinesAroundTheReportAreSkipped() throws {
+        let report = String(
+            decoding: Self.output(limits: [Self.weeklyAll], extraUsage: Self.noExtraUsage), as: UTF8.self)
+        let limits = try ClaudeUsage.limits(inReport: Data(("warming up\n" + report + "done\n").utf8))
+        #expect(limits.map(\.label) == ["Week"])
     }
 
     @Test func outputWithoutAReportIsNotUnderstood() {
@@ -105,7 +141,9 @@ struct ClaudeUsageTests {
     @Test func theToolIsAskedForItsUsageAndHearsTheEnvironment() async throws {
         let tool = try claude(
             """
-            [ "$*" = "--safe-mode --no-session-persistence -p /usage --output-format stream-json --verbose" ] || exit 64
+            [ $# -eq 7 ] && [ "$1" = "--safe-mode" ] && [ "$2" = "--no-session-persistence" ] && [ "$3" = "-p" ] \\
+              && [ "$4" = "/usage" ] && [ "$5" = "--output-format" ] && [ "$6" = "stream-json" ] \\
+              && [ "$7" = "--verbose" ] || exit 64
             percent=$(basename "$CLAUDE_CONFIG_DIR")
             echo '{"type":"system"}'
             echo "{\\"type\\":\\"assistant\\",\\"usage_report\\":{\\"rate_limits\\":{\\"limits\\":[{\\"group\\":\\"weekly\\",\\"percent\\":$percent,\\"resets_at\\":null,\\"scope\\":null}],\\"extra_usage\\":{\\"is_enabled\\":false}}}}"
@@ -117,6 +155,20 @@ struct ClaudeUsageTests {
     @Test func aToolThatPrintsNothingIsNotUnderstood() async throws {
         let tool = try claude(":")
         await #expect(throws: ToolError.notUnderstood("")) {
+            try await ClaudeUsage.limits(tool: tool, environment: [:])
+        }
+    }
+
+    @Test func aToolThatFailsWithoutAReportReportsWhatItComplained() async throws {
+        let tool = try claude("echo printed; echo refused >&2; exit 3")
+        await #expect(throws: ToolError.failed(status: 3, output: "refused\n")) {
+            try await ClaudeUsage.limits(tool: tool, environment: [:])
+        }
+    }
+
+    @Test func aToolThatFailsSilentlyReportsWhatItPrinted() async throws {
+        let tool = try claude("echo printed; exit 4")
+        await #expect(throws: ToolError.failed(status: 4, output: "printed\n")) {
             try await ClaudeUsage.limits(tool: tool, environment: [:])
         }
     }

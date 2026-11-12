@@ -8,11 +8,19 @@ struct CodexUsageTests {
 
     static func answer(primary: String?, secondary: String?) -> Data {
         let windows = [primary.map { "\"primary\": \($0)" }, secondary.map { "\"secondary\": \($0)" }]
+        let limits = """
+            {"limitId": "codex", "limitName": null, "normalModelSlug": null, \
+            \(windows.compactMap { $0 }.joined(separator: ", ")), \
+            "credits": {"hasCredits": false, "unlimited": false, "balance": null}, \
+            "individualLimit": {"limit": "100", "used": "7", "remainingPercent": 93, "resetsAt": 1794520800}, \
+            "spendControlReached": false, "planType": "pro", "rateLimitReachedType": null}
+            """
         return Data(
             """
-            {"ordinaryUsageAllowed": true, "rateLimits": {"limitId": "codex", "limitName": null, \
-            \(windows.compactMap { $0 }.joined(separator: ", ")), "planType": "pro", "rateLimitReachedType": null}, \
-            "accountId": "acct"}
+            {"ordinaryUsageAllowed": true, "rateLimits": \(limits), "rateLimitsByLimitId": {"codex": \(limits)}, \
+            "rateLimitResetCredits": {"availableCount": 1, "credits": [{"id": "credit-1", "resetType": "weekly", \
+            "status": "available", "grantedAt": 1794000000, "expiresAt": 1796000000, "title": "Reset", \
+            "description": "One reset"}]}, "accountId": "acct", "rateLimitUpsell": null}
             """.utf8)
     }
 
@@ -24,7 +32,7 @@ struct CodexUsageTests {
               id=$(printf '%s\n' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
               case "$line" in
                 *'"method":"initialize"'*) echo "{\"id\":$id,\"result\":{\"userAgent\":\"fake\"}}" ;;
-                *'"method":"account/rateLimits/read"'*) \#(answer) ;;
+                *'"method":"account/rateLimits/read"'*'"params":{}'*) touch "$(dirname "$0")/asked"; \#(answer) ;;
               esac
             done
             """#
@@ -79,10 +87,14 @@ struct CodexUsageTests {
         }
     }
 
-    @Test func aServerThatNeverAnswersTimesOut() async throws {
+    @Test func aServerThatNeverAnswersTheQuestionTimesOut() async throws {
         let tool = try server(answeringRateLimits: ":")
+        let start = ContinuousClock.now
         await #expect(throws: ToolError.timedOut) {
             try await CodexUsage.limits(tool: tool, environment: [:], timeout: .milliseconds(300))
         }
+        #expect(ContinuousClock.now - start < .seconds(5))
+        let asked = tool.deletingLastPathComponent().appending(path: "asked")
+        #expect(FileManager.default.fileExists(atPath: asked.path))
     }
 }

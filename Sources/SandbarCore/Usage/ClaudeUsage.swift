@@ -10,7 +10,13 @@ package enum ClaudeUsage {
         tool: URL, environment: [String: String], timeout: Duration = .seconds(30)
     ) async throws -> [UsageLimit] {
         let output = try await Command.run(tool, arguments, environment: environment, timeout: timeout)
-        return try limits(inReport: output.standardOutput)
+        do {
+            return try limits(inReport: output.standardOutput)
+        } catch ToolError.notUnderstood(let printed) where output.status != 0 {
+            let complaint = output.standardError.isEmpty ? Data(printed.utf8) : output.standardError
+            throw ToolError.failed(
+                status: output.status, output: String(decoding: complaint.suffix(2_000), as: UTF8.self))
+        }
     }
 
     package static func limits(inReport output: Data) throws -> [UsageLimit] {
@@ -19,8 +25,10 @@ package enum ClaudeUsage {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let report: RateLimits
         do {
-            let lines = output.split(separator: 0x0A).filter { !$0.allSatisfy { $0 == 0x20 || $0 == 0x0D } }
-            let found = try lines.compactMap { try decoder.decode(Line.self, from: Data($0)).usageReport }.first
+            let objects = output.split(separator: 0x0A).filter {
+                (try? JSONSerialization.jsonObject(with: Data($0))) is [String: Any]  // stray text lines are skipped
+            }
+            let found = try objects.compactMap { try decoder.decode(Line.self, from: Data($0)).usageReport }.first
             guard let found else { throw ToolError.notUnderstood(printed) }
             report = found.rateLimits
         } catch is DecodingError {
