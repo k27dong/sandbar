@@ -19,6 +19,16 @@ package final class StatusItem {
 
     package var button: NSStatusBarButton? { item.button }
 
+    /// False until the menu bar has placed the item: before that its window can sit anywhere, (0, 0) included.
+    package var isPlaced: Bool {
+        guard let window = item.button?.window, let screen = window.screen else { return false }
+        return Self.isInMenuBar(window.frame, of: screen.frame)
+    }
+
+    package static func isInMenuBar(_ item: NSRect, of screen: NSRect) -> Bool {
+        abs(item.maxY - screen.maxY) < 1 && item.minX >= screen.minX && item.maxX <= screen.maxX
+    }
+
     package var isHighlighted: Bool {
         get { item.button?.isHighlighted ?? false }
         set { item.button?.highlight(newValue) }

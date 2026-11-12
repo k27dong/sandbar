@@ -335,6 +335,20 @@ import Testing
         }
     }
 
+    nonisolated static let places: [(item: NSRect, screen: NSRect, isInMenuBar: Bool)] = [
+        (NSRect(x: 0, y: 0, width: 40, height: 30), NSRect(x: 0, y: 0, width: 1440, height: 900), false),
+        (NSRect(x: 1200, y: 870, width: 40, height: 30), NSRect(x: 0, y: 0, width: 1440, height: 900), true),
+        (NSRect(x: 2000, y: 1050, width: 40, height: 30), NSRect(x: 1440, y: 0, width: 1920, height: 1080), true),
+        (NSRect(x: -500, y: 1050, width: 40, height: 30), NSRect(x: -1920, y: 0, width: 1920, height: 1080), true),
+        (NSRect(x: 1200, y: 1050, width: 40, height: 30), NSRect(x: 1440, y: 0, width: 1920, height: 1080), false),
+    ]
+
+    @Test(arguments: places) func theItemHasItsPlaceOnlyAtTheTopOfItsScreen(
+        item: NSRect, screen: NSRect, isInMenuBar: Bool
+    ) {
+        #expect(StatusItem.isInMenuBar(item, of: screen) == isInMenuBar)
+    }
+
     @Test func finishingSetupAsksForPermissionOnce() async throws {
         try await withHome(fresh: true) { home in
             let banners = HandedBanners()

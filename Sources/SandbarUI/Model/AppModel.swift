@@ -64,7 +64,7 @@ import os
         didSet { if hasNetwork, !oldValue { refreshAtOnce() } }
     }
 
-    static let log = Logger(subsystem: "com.k27dong.sandbar", category: "model")
+    package static let log = Logger(subsystem: "com.k27dong.sandbar", category: "model")
 
     let files: Files
     let send: GitHubClient.Send

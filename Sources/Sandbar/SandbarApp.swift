@@ -3,6 +3,7 @@ import Observation
 import SandbarCore
 import SandbarUI
 import SwiftUI
+import os
 
 @main
 enum SandbarApp {
@@ -19,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let panel = PanelWindow()
     private var model: AppModel?
     private var shortcut: Shortcut?
+    private var waitingForPlace: Task<Void, Never>?
     private lazy var statusItem = StatusItem { [unowned self] in self.togglePanel() }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -72,14 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     guard let self else { return }
                     switch opens {
                     case .pullRequest(let address): NSWorkspace.shared.open(address)
-                    case .panel:
-                        Task {
-                            let deadline = ContinuousClock.now + .seconds(5)  // the item may not be placed yet
-                            while statusItem.button?.window?.screen == nil, ContinuousClock.now < deadline {
-                                do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
-                            }
-                            if !panel.isOpen { togglePanel() }
-                        }
+                    case .panel: if !panel.isOpen { togglePanelOncePlaced() }
                     }
                 })
             use(model)
@@ -103,6 +98,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if panel.isOpen { model.panelOpened() }
     }
 
+    /// For every way of opening the panel but a click on the item, which may come before the item has its place.
+    private func togglePanelOncePlaced() {
+        guard !panel.isOpen else { return togglePanel() }
+        guard waitingForPlace == nil else { return }
+        waitingForPlace = Task {
+            defer { waitingForPlace = nil }
+            let deadline = ContinuousClock.now + .seconds(5)
+            while !statusItem.isPlaced {
+                guard ContinuousClock.now < deadline else {
+                    AppModel.log.error("The panel was not opened: the menu bar has not placed Sandbar's item")
+                    return
+                }
+                do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+            }
+            if !panel.isOpen { togglePanel() }
+        }
+    }
+
     private func use(_ model: AppModel) {
         let settings = SettingsWindow(model: model)
         model.closePanel = { [unowned self] in self.panel.close() }
@@ -124,7 +137,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         withObservationTracking {
             shortcut = nil  // the old one lets go of its keys first, so the same keys can be taken again
             guard !model.isRecordingShortcut else { return }
-            shortcut = model.preferences.shortcut.map { keys in Shortcut(keys) { [unowned self] in self.togglePanel() }
+            shortcut = model.preferences.shortcut.map { keys in
+                Shortcut(keys) { [unowned self] in self.togglePanelOncePlaced() }
             }
             model.shortcutIsRefused = shortcut.map { !$0.isRegistered } ?? false
         } onChange: {
