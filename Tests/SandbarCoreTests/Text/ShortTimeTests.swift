@@ -1,7 +1,6 @@
 import Foundation
+import SandbarCore
 import Testing
-
-@testable import SandbarCore
 
 struct ShortTimeTests {
     static let now = Date(timeIntervalSince1970: 1_794_506_400)  // 2026-11-12 18:00 UTC

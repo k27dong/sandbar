@@ -3,7 +3,9 @@ import Foundation
 package enum ShortTime {
     package static func left(until end: Date, from now: Date) -> String {
         let minutes = max(0, Int((end.timeIntervalSince(now) / 60).rounded(.up)))
-        let (days, hours, minutesOfHour) = (minutes / 1_440, minutes / 60 % 24, minutes % 60)
+        let days = minutes / 1_440
+        let hours = minutes / 60 % 24
+        let minutesOfHour = minutes % 60
         if days > 0 { return "\(days)d\(hours)h" }
         if hours > 0 { return "\(hours)h\(minutesOfHour)m" }
         return "\(minutes)m"
