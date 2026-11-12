@@ -24,6 +24,9 @@ struct ToolDownloadTests {
            "browser_download_url": "\(codexAssets)/codex-app-server-aarch64-apple-darwin.tar.gz",
            "digest": "sha256:cc33"}]}
         """
+    static let refusedVersionCases: [(tool: Tool, version: String)] = [
+        (.claude, "1.2.3-../../x"), (.claude, "1.2.3/x"), (.codex, "1.2.3-../../x"), (.codex, "1.2.3/x"),
+    ]
     static let wrongChecksumCases: [(tool: Tool, expected: String)] = [(.claude, "aa11"), (.codex, "cc33")]
 
     actor Downloads {
@@ -31,15 +34,18 @@ struct ToolDownloadTests {
         func add(_ address: URL) { addresses.append(address) }
     }
 
-    let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+    let parent = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+    var folder: URL { parent.appending(path: "Tools") }
     let downloads = Downloads()
 
-    func stub(latest: String = "2.1.400\n", checksum: String = "aa11", archive: URL? = nil) -> ToolDownload {
+    func stub(
+        latest: String = "2.1.400\n", tag: String = "rust-v0.167.2", checksum: String = "aa11", archive: URL? = nil
+    ) -> ToolDownload {
         let answers = [
             "\(Self.releases)/latest": latest,
             "\(Self.releases)/\(latest.trimmingCharacters(in: .whitespacesAndNewlines))/manifest.json":
                 Self.manifest.replacingOccurrences(of: "2.1.400", with: latest),
-            Self.codexRelease: Self.release,
+            Self.codexRelease: Self.release.replacingOccurrences(of: "\"rust-v0.167.2\"", with: "\"\(tag)\""),
         ]
         let downloads = downloads
         return ToolDownload(
@@ -108,7 +114,24 @@ struct ToolDownloadTests {
             try Data("binary".utf8).write(to: program)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: program.path)
         }
-        #expect(stub().installed(.claude) == folder.appending(path: "claude/2.1.400/claude"))
+        #expect(try stub().installed(.claude) == folder.appending(path: "claude/2.1.400/claude"))
+    }
+
+    @Test(arguments: refusedVersionCases) func aVersionThatIsNotPlainIsRefused(tool: Tool, version: String) async throws
+    {
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        let neighbour = parent.appending(path: "x")
+        try Data("keep".utf8).write(to: neighbour)
+        let download = stub(latest: version, tag: "rust-v\(version)", checksum: "cc33")
+        let refusal = ToolError.notUnderstood(tool == .claude ? version : "rust-v\(version)")
+        await #expect(throws: refusal) { try await download.install(tool, platform: .macArm) }
+        #expect(!FileManager.default.fileExists(atPath: folder.path))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: parent.path) == ["x"])
+        #expect(await downloads.addresses.isEmpty)
+    }
+
+    @Test func nothingIsInstalledBeforeTheFirstInstall() throws {
+        #expect(try stub().installed(.codex) == nil)
     }
 
     @Test func anInstalledLatestIsNotDownloadedAgain() async throws {
@@ -147,7 +170,8 @@ struct ToolDownloadLiveTests {
     }
 
     @Test(.enabled(if: Live.isOn)) func codexFromTheRealReleaseAnswersSignedOut() async throws {
-        let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+        let parent = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+        var folder: URL { parent.appending(path: "Tools") }
         let download = ToolDownload(
             folder: folder,
             fetch: { address in try await URLSession.shared.data(from: address).0 },

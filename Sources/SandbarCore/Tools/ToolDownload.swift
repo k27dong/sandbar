@@ -75,11 +75,10 @@ package struct ToolDownload: Sendable {
         }
     #endif
 
-    package func installed(_ tool: Tool) -> URL? {
-        // no folder yet means nothing is installed
-        let versions =
-            (try? FileManager.default.contentsOfDirectory(atPath: folder.appending(path: tool.rawValue).path)) ?? []
-        return versions.filter(Self.isVersion)
+    package func installed(_ tool: Tool) throws -> URL? {
+        let toolFolder = folder.appending(path: tool.rawValue)
+        guard FileManager.default.fileExists(atPath: toolFolder.path) else { return nil }
+        return try FileManager.default.contentsOfDirectory(atPath: toolFolder.path).filter(Self.isVersion)
             .sorted { Self.numbers(of: $0).lexicographicallyPrecedes(Self.numbers(of: $1)) }
             .reversed()
             .map { place(tool, $0) }
@@ -114,7 +113,7 @@ package struct ToolDownload: Sendable {
             case .linuxIntel: "linux-x64"
             }
         guard let build = manifest.platforms[name] else { throw DownloadError.noBuild(name) }
-        try await keep(release.appending(path: "\(name)/claude"), checksum: build.checksum, at: program)
+        try await keep(.claude, version, from: release.appending(path: "\(name)/claude"), checksum: build.checksum)
         return program
     }
 
@@ -158,11 +157,14 @@ package struct ToolDownload: Sendable {
             throw DownloadError.noBuild(triple)
         }
         guard asset.digest.hasPrefix("sha256:") else { throw ToolError.notUnderstood(asset.digest) }
-        try await keep(asset.address, checksum: String(asset.digest.dropFirst(7)), at: program, unpacking: member)
+        try await keep(
+            .codex, version, from: asset.address, checksum: String(asset.digest.dropFirst(7)), unpacking: member)
         return program
     }
 
-    private func keep(_ address: URL, checksum: String, at program: URL, unpacking member: String? = nil) async throws {
+    private func keep(
+        _ tool: Tool, _ version: String, from address: URL, checksum: String, unpacking member: String? = nil
+    ) async throws {
         let scratch = folder.appending(path: ".download-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: scratch) }  // a leftover costs disk space, never the result
@@ -181,14 +183,14 @@ package struct ToolDownload: Sendable {
             }
             file = scratch.appending(path: member)
         }
-        let versionFolder = program.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: versionFolder, withIntermediateDirectories: true)
+        let program = place(tool, version)
+        try FileManager.default.createDirectory(
+            at: program.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.moveItem(at: file, to: program)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: program.path)
-        let toolFolder = versionFolder.deletingLastPathComponent()
-        for version in try FileManager.default.contentsOfDirectory(atPath: toolFolder.path)
-        where version != versionFolder.lastPathComponent {
-            try FileManager.default.removeItem(at: toolFolder.appending(path: version))
+        let toolFolder = folder.appending(path: tool.rawValue)
+        for entry in try FileManager.default.contentsOfDirectory(atPath: toolFolder.path) where entry != version {
+            try FileManager.default.removeItem(at: toolFolder.appending(path: entry))
         }
     }
 
@@ -202,7 +204,7 @@ package struct ToolDownload: Sendable {
     }
 
     private static func isVersion(_ text: String) -> Bool {
-        text.wholeMatch(of: /[0-9]+\.[0-9]+\.[0-9]+(-[^\s]+)?/) != nil
+        text.wholeMatch(of: /[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?/.matchingSemantics(.unicodeScalar)) != nil
     }
 
     private static func numbers(of version: String) -> [Int] {
