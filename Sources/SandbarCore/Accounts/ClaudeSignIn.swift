@@ -24,6 +24,11 @@ package enum ClaudeSignIn {
         try Command.start(tool, ["auth", "login"], environment: environment)
     }
 
+    package static func address(in line: String) -> URL? {
+        guard let start = line.range(of: "https://") else { return nil }
+        return URL(string: String(line[start.lowerBound...].prefix { !$0.isWhitespace }))
+    }
+
     package static func signOut(tool: URL, environment: [String: String]) async throws {
         let output = try await Command.run(tool, ["auth", "logout"], environment: environment)
         guard output.status == 0 else {

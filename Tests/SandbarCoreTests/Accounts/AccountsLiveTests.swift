@@ -49,13 +49,13 @@ struct AccountsLiveTests {
             try await Task.sleep(for: .seconds(30))
             running.stop()
         }
-        var addressLine: String?
-        for await line in running.lines where line.contains("https://") {
-            addressLine = line
-            break
+        var address: URL?
+        for await line in running.lines {
+            address = ClaudeSignIn.address(in: line)
+            if address != nil { break }
         }
         deadline.cancel()
         running.stop()
-        #expect(addressLine != nil)
+        #expect(address?.scheme == "https")
     }
 }

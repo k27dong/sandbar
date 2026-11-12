@@ -83,6 +83,11 @@ struct CodexSignInTests {
         await #expect(throws: ToolError.failed(status: 1, output: "denied")) { try await pending.finished() }
     }
 
+    @Test func aToolThatEndsBeforeTheNoticeFails() async throws {
+        let pending = try await CodexSignIn.begin(tool: try signInServer(completing: "exit 0"), environment: [:])
+        await #expect(throws: ToolError.failed(status: 1, output: "")) { try await pending.finished() }
+    }
+
     @Test func cancellingReachesTheTool() async throws {
         let tool = try signInServer()
         let pending = try await CodexSignIn.begin(tool: tool, environment: [:])

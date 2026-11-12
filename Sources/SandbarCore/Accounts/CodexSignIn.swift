@@ -27,7 +27,7 @@ package enum CodexSignIn {
             }
             await server.stop()
             try Task.checkCancellation()
-            throw ToolError.signedOut  // the tool ended before the browser came back
+            throw ToolError.failed(status: 1, output: "")  // the tool ended before the browser came back
         }
 
         package func cancel() async {

@@ -44,4 +44,14 @@ struct ClaudeSignInTests {
         try running.send("code-123")
         #expect(await running.status() == 0)
     }
+
+    @Test func theAddressIsFoundInItsLine() {
+        let line = "If the browser didn't open, visit: https://claude.example/oauth/authorize?code=true&state=abc"
+        #expect(
+            ClaudeSignIn.address(in: line) == URL(string: "https://claude.example/oauth/authorize?code=true&state=abc"))
+    }
+
+    @Test func aLineWithoutAnAddressHasNone() {
+        #expect(ClaudeSignIn.address(in: "Opening browser to sign in…") == nil)
+    }
 }
