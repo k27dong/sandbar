@@ -63,7 +63,7 @@ waitFor() {
             exit 1
         fi
         windows="$(osascript -e "tell application \"System Events\" to count windows of (first process whose unix id is $program)")"
-        if [ "$windows" = 0 ]; then item 1 click || item 2 click || true; fi  # a browser page that opens closes the panel
+        if [ "$windows" = 0 ]; then item 2 click || item 1 click || true; fi  # a browser page that opens closes the panel
         sleep 1
     done
 }
@@ -71,7 +71,7 @@ waitFor() {
 action=click
 if [ "$opening" = shortcut ]; then action='get position'; fi
 deadline=$(($(date +%s) + 30))
-until item 1 "$action" || item 2 "$action"; do
+until item 2 "$action" || item 1 "$action"; do  # menu bar 1 is the app's own menu once it has one
     if [ "$(date +%s)" -ge "$deadline" ]; then
         echo "System Events could not click Sandbar's menu bar item" >&2
         exit 1
