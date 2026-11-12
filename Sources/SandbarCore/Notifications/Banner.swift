@@ -28,8 +28,8 @@ package struct Banner: Equatable, Identifiable, Sendable {
         var changesRequested: [(pullRequest: PullRequest, by: String?)] = []
         var checksFailed: [PullRequest] = []
         var reviewRequested: [PullRequest] = []
-        var resets: [(account: String, labels: [String])] = []
-        var near: [(account: String, limit: UsageLimit)] = []
+        var resets: [(account: Account, labels: [String])] = []
+        var near: [(account: Account, limit: UsageLimit)] = []
         for change in changes {
             switch change {
             case .approved(let pullRequest, let by): approved.append((pullRequest, by))
@@ -37,7 +37,7 @@ package struct Banner: Equatable, Identifiable, Sendable {
             case .checksFailed(let pullRequest): checksFailed.append(pullRequest)
             case .reviewRequested(let pullRequest): reviewRequested.append(pullRequest)
             case .limitReset(let account, let limit):
-                if let index = resets.firstIndex(where: { $0.account == account }) {
+                if let index = resets.firstIndex(where: { $0.account.id == account.id }) {
                     resets[index].labels.append(limit.label)
                 } else {
                     resets.append((account, [limit.label]))
@@ -81,16 +81,17 @@ package struct Banner: Equatable, Identifiable, Sendable {
         if settings.limitReset {
             banners += resets.map {
                 limitResetBanner(
-                    "limitReset-\(seconds)-\($0.account)", account: $0.account, labels: $0.labels, deliverAt: nil)
+                    "limit-reset-\($0.account.id.uuidString)-\(seconds)", account: $0.account.name, labels: $0.labels,
+                    deliverAt: nil)
             }
         }
         if settings.limitNear {
             banners += near.map { account, limit in
                 let left = limit.end(now: now).map { " · \(ShortTime.left(until: $0, from: now)) left" } ?? ""
                 return Banner(
-                    id: "limitNear-\(seconds)-\(account)-\(limit.label)",
+                    id: "limit-near-\(account.id.uuidString)-\(limit.label)-\(seconds)",
                     title: "\(Int((limit.used * 100).rounded()))% used",
-                    body: "\(account) · \(limit.label)\(left)", opens: .panel, deliverAt: nil)
+                    body: "\(account.name) · \(limit.label)\(left)", opens: .panel, deliverAt: nil)
             }
         }
         return banners

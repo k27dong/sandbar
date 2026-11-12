@@ -74,26 +74,26 @@ struct BannerTests {
             ["Review requested", "Cache the cart total and 1 more"]
         ),
         (
-            [.limitReset(account: "Personal", limit: personalWeek)],
+            [.limitReset(account: Self.personal, limit: personalWeek)],
             ["Limit reset", "Personal · Week"]
         ),
         (
             [
-                .limitReset(account: "Personal", limit: personalWeek),
-                .limitReset(account: "Personal", limit: personalFable),
+                .limitReset(account: Self.personal, limit: personalWeek),
+                .limitReset(account: Self.personal, limit: personalFable),
             ],
             ["Limit reset", "Personal · Week, Fable"]
         ),
         (
-            [.limitNear(account: "Personal", limit: nearWeek)],
+            [.limitNear(account: Self.personal, limit: nearWeek)],
             ["80% used", "Personal · Week · 2d4h left"]
         ),
         (
-            [.limitNear(account: "Personal", limit: nearMonth)],
+            [.limitNear(account: Self.personal, limit: nearMonth)],
             ["83% used", "Personal · Month · \(ShortTime.left(until: monthEnd, from: Sample.now)) left"]
         ),
         (
-            [.limitNear(account: "Work", limit: UsageLimit(window: .other("mystery_group"), used: 0.9))],
+            [.limitNear(account: Self.work, limit: UsageLimit(window: .other("mystery_group"), used: 0.9))],
             ["90% used", "Work · Mystery group"]
         ),
     ]
@@ -115,9 +115,9 @@ struct BannerTests {
 
     @Test func severalKindsComeInTheFixedOrderWhateverTheOrderGiven() {
         let changes: [Change] = [
-            .limitNear(account: "Personal", limit: Self.nearWeek),
+            .limitNear(account: Self.personal, limit: Self.nearWeek),
             .reviewRequested(PullRequest.sample(4, title: "Cache the cart total", author: "dana")),
-            .limitReset(account: "Personal", limit: Self.personalWeek),
+            .limitReset(account: Self.personal, limit: Self.personalWeek),
             .checksFailed(Self.failing(Self.tidy, ["lint"])),
             .changesRequested(Self.cache, by: "priya"),
             .approved(Self.retry, by: "mchen"),
@@ -135,11 +135,11 @@ struct BannerTests {
 
     @Test func limitResetsGiveOneBannerPerAccountAndLimitsNearOnePerLimit() {
         let changes: [Change] = [
-            .limitReset(account: "Personal", limit: Self.personalWeek),
-            .limitReset(account: "Work", limit: Self.personalFable),
-            .limitReset(account: "Personal", limit: Self.personalFable),
-            .limitNear(account: "Personal", limit: Self.nearWeek),
-            .limitNear(account: "Personal", limit: Self.nearMonth),
+            .limitReset(account: Self.personal, limit: Self.personalWeek),
+            .limitReset(account: Self.work, limit: Self.personalFable),
+            .limitReset(account: Self.personal, limit: Self.personalFable),
+            .limitNear(account: Self.personal, limit: Self.nearWeek),
+            .limitNear(account: Self.personal, limit: Self.nearMonth),
         ]
         var settings = NotificationSettings()
         settings.limitNear = true
@@ -152,11 +152,35 @@ struct BannerTests {
         #expect(Set(banners.map(\.id)).count == banners.count)
     }
 
+    @Test func twoAccountsWithTheSameNameEachGetTheirOwnBanner() {
+        let namesake = Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil)
+        var settings = NotificationSettings()
+        settings.limitNear = true
+        let banners = Banner.now(
+            for: [
+                .limitReset(account: Self.personal, limit: Self.personalWeek),
+                .limitReset(account: namesake, limit: Self.personalWeek),
+                .limitNear(account: Self.personal, limit: Self.nearWeek),
+                .limitNear(account: namesake, limit: Self.nearWeek),
+            ], settings: settings, at: Sample.now)
+        #expect(
+            banners.map(\.body) == [
+                "Personal · Week", "Personal · Week", "Personal · Week · 2d4h left", "Personal · Week · 2d4h left",
+            ])
+        #expect(
+            banners.map(\.id) == [
+                "limit-reset-\(Self.personal.id.uuidString)-1794506400",
+                "limit-reset-\(namesake.id.uuidString)-1794506400",
+                "limit-near-\(Self.personal.id.uuidString)-Week-1794506400",
+                "limit-near-\(namesake.id.uuidString)-Week-1794506400",
+            ])
+    }
+
     @Test func aKindSwitchedOffIsMissingAndTheOthersStay() {
         let changes: [Change] = [
             .approved(Self.retry, by: "mchen"), .changesRequested(Self.cache, by: "priya"),
             .checksFailed(Self.failing(Self.tidy, ["lint"])),
-            .limitReset(account: "Personal", limit: Self.personalWeek),
+            .limitReset(account: Self.personal, limit: Self.personalWeek),
         ]
         var settings = NotificationSettings()
         settings.changesRequested = false
@@ -168,7 +192,7 @@ struct BannerTests {
 
     @Test func kindsSwitchedOffByDefaultGiveNothing() {
         let changes: [Change] = [
-            .reviewRequested(Self.cache), .limitNear(account: "Personal", limit: Self.nearWeek),
+            .reviewRequested(Self.cache), .limitNear(account: Self.personal, limit: Self.nearWeek),
         ]
         #expect(Self.lines(changes).isEmpty)
     }
@@ -177,8 +201,8 @@ struct BannerTests {
         let changes: [Change] = [
             .approved(Self.retry, by: "mchen"), .changesRequested(Self.cache, by: "priya"),
             .checksFailed(Self.failing(Self.tidy, ["lint"])), .reviewRequested(Self.cache),
-            .limitReset(account: "Personal", limit: Self.personalWeek),
-            .limitNear(account: "Personal", limit: Self.nearWeek),
+            .limitReset(account: Self.personal, limit: Self.personalWeek),
+            .limitNear(account: Self.personal, limit: Self.nearWeek),
         ]
         var everything = NotificationSettings()
         everything.reviewRequested = true
@@ -215,8 +239,8 @@ struct BannerTests {
         settings.limitNear = true
         let banners = Banner.now(
             for: [
-                .limitReset(account: "Personal", limit: Self.personalWeek),
-                .limitNear(account: "Personal", limit: Self.nearWeek),
+                .limitReset(account: Self.personal, limit: Self.personalWeek),
+                .limitNear(account: Self.personal, limit: Self.nearWeek),
             ], settings: settings, at: Sample.now)
         #expect(banners.map(\.opens) == [.panel, .panel])
     }

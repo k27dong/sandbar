@@ -174,7 +174,7 @@ struct ChangesTests {
         let changes = Self.changes(
             from: Self.snapshot(accounts: [Self.limits(Self.personal, [before])]),
             to: Self.snapshot(accounts: [Self.limits(Self.personal, [after])]))
-        #expect(changes == [.limitNear(account: "Personal", limit: after)])
+        #expect(changes == [.limitNear(account: Self.personal, limit: after)])
     }
 
     @Test func stayingAboveEightyPercentGivesNothing() {
@@ -192,7 +192,7 @@ struct ChangesTests {
         let changes = Self.changes(
             from: Self.snapshot(accounts: [Self.limits(Self.personal, [before])]),
             to: Self.snapshot(accounts: [Self.limits(Self.personal, [after])]))
-        #expect(changes == [.limitReset(account: "Personal", limit: after)])
+        #expect(changes == [.limitReset(account: Self.personal, limit: after)])
     }
 
     @Test func aWeekLimitWithAResetTimeFallingGivesNothing() {
@@ -225,7 +225,7 @@ struct ChangesTests {
         let new = Self.snapshot(accounts: [
             Self.limits(Self.work, [workAfter]), Self.limits(Self.personal, [weekAll, weekFableAfter]),
         ])
-        #expect(Self.changes(from: old, to: new) == [.limitNear(account: "Personal", limit: weekFableAfter)])
+        #expect(Self.changes(from: old, to: new) == [.limitNear(account: Self.personal, limit: weekFableAfter)])
     }
 
     @Test func anAccountOrLimitNotInTheOldSnapshotGivesNothing() {

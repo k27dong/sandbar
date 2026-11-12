@@ -5,8 +5,8 @@ package enum Change: Equatable, Sendable {
     case changesRequested(PullRequest, by: String?)
     case checksFailed(PullRequest)
     case reviewRequested(PullRequest)
-    case limitReset(account: String, limit: UsageLimit)
-    case limitNear(account: String, limit: UsageLimit)
+    case limitReset(account: Account, limit: UsageLimit)
+    case limitNear(account: Account, limit: UsageLimit)
 }
 
 extension Snapshot {
@@ -47,10 +47,10 @@ extension Snapshot {
                         })
                     else { continue }
                     if last.used < 0.8, limit.used >= 0.8 {
-                        changes.append(.limitNear(account: account.account.name, limit: limit))
+                        changes.append(.limitNear(account: account.account, limit: limit))
                     }
                     if limit.resetsAt == nil, limit.used < last.used {
-                        changes.append(.limitReset(account: account.account.name, limit: limit))
+                        changes.append(.limitReset(account: account.account, limit: limit))
                     }
                 }
             }
