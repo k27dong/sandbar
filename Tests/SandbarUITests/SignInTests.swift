@@ -243,7 +243,7 @@ actor Maker {
             let github = GitHubStub()
             await github.answerTheCodeWith(answer)
             let model = home.model(send: github.send)
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             #expect(model.gitHub == .none)
             #expect(model.gitHubNote == note)
             #expect(!model.isSigningIn)
@@ -260,7 +260,7 @@ actor Maker {
             var refusing = Keychain.Item(named: home.keychainItem)
             refusing.write = { _ in throw Keychain.Failure.status(-25308) }
             let model = home.model(send: github.send, keychain: refusing)
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             #expect(model.gitHub == .none)
             #expect(model.gitHubNote == "The sign-in could not be kept in the Keychain.")
             #expect(Preferences(defaults: home.defaults).gitHubLogin == nil)
@@ -288,7 +288,7 @@ actor Maker {
             refusing.delete = { throw Keychain.Failure.status(-25308) }
             let model = home.model(findTool: Fake.found(["gh": try Fake.gh()]), send: github.send, keychain: refusing)
             model.start()
-            await model.useGhSignIn()
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
             #expect(model.gitHub == .connected(login: "kd", throughGh: true))
             #expect(model.gitHubNote == "The sign-in could not be removed from the Keychain.")
             #expect(Preferences(defaults: home.defaults).usesGhSignIn)
@@ -298,7 +298,7 @@ actor Maker {
     @Test func aCodeSignInThatCannotReachGitHubSaysSo() async throws {
         try await withHome(fresh: true) { home in
             let model = home.model()
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             #expect(model.gitHub == .none)
             #expect(model.gitHubNote == "GitHub could not be reached.")
         }
@@ -309,7 +309,7 @@ actor Maker {
             let github = GitHubStub()
             await github.answerTheCodeWith(#"{"error": "expired_token"}"#)
             let model = home.model(send: github.send, sleep: { _ in try await Task.sleep(for: .seconds(30)) })
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             try #require(model.gitHubNote == "The code expired.")
 
             Task { await model.connectGitHub() }
@@ -367,7 +367,7 @@ actor Maker {
             let github = GitHubStub()
             await github.answerTheCodeWith(#"{"error": "expired_token"}"#)
             let model = home.model(send: github.send, sleep: { _ in try await Task.sleep(for: .seconds(30)) })
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             #expect(model.gitHub == .connected(login: "kd", throughGh: false))
             #expect(model.gitHubNote == "The code expired.")
 
@@ -407,7 +407,7 @@ actor Maker {
             try #require(model.needsGitHubSignIn)
 
             await github.holdNext()
-            await model.useGhSignIn()
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
             #expect(model.gitHub == .connected(login: "kd", throughGh: true))
             #expect(!model.needsGitHubSignIn, "before the pull requests are read again")
             #expect(model.snapshot.pullRequests.detail == nil)
@@ -431,7 +431,7 @@ actor Maker {
             model.panelOpened()
             try await eventually("gh is found signed in") { model.canUseGh }
 
-            await model.useGhSignIn()
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
             #expect(model.gitHub == .connected(login: "kd", throughGh: true))
             let kept = try Keychain.read(home.keychainItem)
             #expect(kept == nil)
@@ -442,7 +442,7 @@ actor Maker {
         try await withHome { home in
             let model = home.model(findTool: Fake.found(["gh": try Fake.gh(signedIn: false)]))
             model.start()
-            await model.useGhSignIn()
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
             #expect(model.gitHub == .connected(login: "kd", throughGh: false))
             #expect(model.gitHubNote == "GitHub sign-in is missing or no longer valid.")
             let kept = try Keychain.read(home.keychainItem)
@@ -458,7 +458,7 @@ actor Maker {
             try await eventually("the lookup ends") { !model.existingSignIns.isEmpty }
             #expect(!model.canUseGh)
 
-            await model.useGhSignIn()
+            try await ends("gh's sign-in ends") { await model.useGhSignIn() }
             #expect(model.gitHub == .none)
             #expect(model.gitHubNote == "GitHub sign-in is missing or no longer valid.")
         }
@@ -484,7 +484,7 @@ actor Maker {
             let model = home.model(send: github.send)
             #expect(!model.needsGitHubSignIn)
 
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(model.snapshot.pullRequests.trouble == .signedOut)
             #expect(model.needsGitHubSignIn)
             #expect(await github.requests == 0)
@@ -496,7 +496,7 @@ actor Maker {
             Preferences(defaults: home.defaults).usesGhSignIn = true
             let model = home.model(snapshot: stage("day"))
             try #require(model.list.openCount == 7)
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             try #require(model.gitHubNote == "GitHub could not be reached.")
 
             model.signOutOfGitHub()
@@ -633,14 +633,17 @@ actor Maker {
             try await eventually("the lookup ends") { !model.existingSignIns.isEmpty }
             #expect(model.existingSignIns[.claude] == .absent)
 
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             #expect(model.signInStep[.claude] == .failed("Claude Code was not found."))
             #expect(model.accounts.isEmpty)
         }
     }
 
     @Test func signInsAreLookedForOnlyWhileASignInIsOnScreenOrWhenAsked() async throws {
-        let counting = #"echo "$*" >> "$(dirname "$0")/asked"; echo '{"loggedIn": true}'"#
+        let counting = #"""
+            echo "$*" >> "$(dirname "$0")/asked"
+            if [ -e "$(dirname "$0")/signed-out" ]; then echo '{"loggedIn": false}'; else echo '{"loggedIn": true}'; fi
+            """#
         func asked(_ claude: URL) throws -> Int {
             let record = Fake.beside(claude, "asked")
             guard FileManager.default.fileExists(atPath: record.path) else { return 0 }
@@ -651,9 +654,13 @@ actor Maker {
             let model = home.model(findTool: Fake.found(["claude": claude]))
             model.start()
             model.panelOpened()
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(model.existingSignIns.isEmpty, "after setup, with GitHub connected, nothing is looked for")
+
+            try Data().write(to: Fake.beside(claude, "signed-out"))
             model.findSignIns()
-            try await eventually("the lookup that was asked for ends") { !model.existingSignIns.isEmpty }
-            #expect(try asked(claude) == 1, "after setup, with GitHub connected, only the one asked for")
+            try await eventually("the lookup that was asked for ends") { model.existingSignIns[.claude] == .absent }
+            #expect(try asked(claude) == 1, "only the lookup that was asked for")
         }
         try await withHome { home in
             var stoppedWorking = Snapshot.empty
@@ -680,7 +687,7 @@ actor Maker {
             model.start()
             try await eventually("the sign-in is found") { model.canUseExisting(.claude) }
 
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             let account = try #require(model.accounts.first)
             #expect(model.accounts.count == 1)
             #expect(account.tool == .claude)
@@ -701,7 +708,7 @@ actor Maker {
         try await withHome { home in
             let model = home.model(findTool: Fake.found(["codex": try Fake.codex(ownSignIn: true)]))
             model.start()
-            await model.useExisting(.codex)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.codex) }
             #expect(model.accounts.map(\.title) == ["Codex (Plus)"])
             #expect(model.accounts.first?.profile == nil)
         }
@@ -711,12 +718,12 @@ actor Maker {
         try await withHome { home in
             let model = home.model(findTool: Fake.found(["claude": try Fake.claude()]))
             model.start()
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             #expect(model.accounts.isEmpty)
             #expect(model.signInStep[.claude] == .failed("Signed out."))
             #expect(!FileManager.default.fileExists(atPath: home.files.accounts.path))
 
-            await model.useExisting(.codex)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.codex) }
             #expect(model.signInStep[.codex] == .failed("Codex was not found."))
         }
     }
@@ -732,7 +739,7 @@ actor Maker {
             })
             model.panelOpened()
             try await eventually("the lookup ends") { !model.existingSignIns.isEmpty }
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             try #require(model.signInStep[.claude] == .failed("Signed out."))
 
             try Data().write(to: since)
@@ -740,7 +747,7 @@ actor Maker {
             try await eventually("the sign-in is found") { model.canUseExisting(.claude) }
             #expect(model.signInStep[.claude] == .failed("Signed out."), "looking again clears nothing")
 
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             #expect(model.signInStep[.claude] == .idle)
             #expect(model.accounts.count == 1)
         }
@@ -814,7 +821,9 @@ actor Maker {
                 try #require(try entries(of: home.files.profiles).count == 1)
 
                 model.cancelSignIn(tool == .claude ? .codex : .claude)
+                try await Task.sleep(for: .milliseconds(100))
                 #expect(model.signInStep[tool] == .waitingForBrowser, "another tool's Cancel ends nothing")
+                #expect(model.isSigningIn)
 
                 model.cancelSignIn(tool)
                 try await eventually("the sign-in ends") { !model.isSigningIn }
@@ -965,7 +974,7 @@ actor Maker {
         try await withHome { home in
             let model = home.model()
             model.start()
-            await model.addAccount(.codex)
+            try await ends("the sign-in ends") { await model.addAccount(.codex) }
             #expect(model.signInStep[.codex] == .failed("The read failed."))
             let profiles = try entries(of: home.files.profiles)
             #expect(profiles.isEmpty)
@@ -982,9 +991,9 @@ actor Maker {
             Task { await model.addAccount(.codex) }
             try await eventually("the browser is waited for") { model.signInStep[.codex] == .waitingForBrowser }
 
-            await model.addAccount(.claude)
-            await model.useExisting(.claude)
-            await model.connectGitHub()
+            try await ends("a second sign-in is turned away at once") { await model.addAccount(.claude) }
+            try await ends("a second sign-in is turned away at once") { await model.useExisting(.claude) }
+            try await ends("a second sign-in is turned away at once") { await model.connectGitHub() }
             #expect(model.signInStep[.claude] == .idle)
             #expect(model.accounts.isEmpty)
             #expect(model.gitHub == .none)
@@ -1009,7 +1018,7 @@ actor Maker {
             try await home.settled()
             let profile = try #require(added.profile)
 
-            await model.remove(added)
+            try await ends("the account is removed or kept") { await model.remove(added) }
             #expect(model.accounts == [own])
             #expect(!FileManager.default.fileExists(atPath: profile.path))
             let signedOut = try String(contentsOf: Fake.beside(claude, "signed-out"), encoding: .utf8)
@@ -1018,7 +1027,7 @@ actor Maker {
             try await eventually("the limits no longer hold it") { model.snapshot.accounts.map(\.account) == [own] }
 
             try FileManager.default.removeItem(at: Fake.beside(claude, "signed-out"))
-            await model.remove(own)
+            try await ends("the account is removed or kept") { await model.remove(own) }
             #expect(model.accounts.isEmpty)
             #expect(!FileManager.default.fileExists(atPath: Fake.beside(claude, "signed-out").path))
             #expect(try Account.load(from: home.files.accounts).isEmpty)
@@ -1045,7 +1054,7 @@ actor Maker {
             try await eventually("the account is read") { model.snapshot.accounts.count == 1 }
             try await home.settled()
 
-            await model.remove(added)
+            try await ends("the account is removed or kept") { await model.remove(added) }
             #expect(model.accounts == [added])
             #expect(model.signInStep[.claude] == .failed("refused"))
             #expect(FileManager.default.fileExists(atPath: try #require(added.profile).path))
@@ -1063,7 +1072,7 @@ actor Maker {
             try await eventually("the account is read") { model.snapshot.accounts.count == 1 }
             try await home.settled()
 
-            await model.remove(added)
+            try await ends("the account is removed or kept") { await model.remove(added) }
             #expect(model.accounts.isEmpty)
             #expect(model.signInStep[.codex] == .idle)
             #expect(!FileManager.default.fileExists(atPath: try #require(added.profile).path))
@@ -1110,7 +1119,7 @@ actor Maker {
             #expect(!FileManager.default.fileExists(atPath: home.files.accounts.path))
             #expect(try String(contentsOf: home.files.unreadableAccounts, encoding: .utf8) == "not accounts")
 
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             #expect(try Account.load(from: home.files.accounts).map(\.title) == ["Acme Robotics (Enterprise)"])
         }
     }
@@ -1130,8 +1139,8 @@ actor Maker {
             model.start()
             #expect(model.accountsNote == "Saved accounts could not be read.")
 
-            await model.useExisting(.claude)
-            await model.addAccount(.codex)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
+            try await ends("the sign-in ends") { await model.addAccount(.codex) }
             #expect(model.accounts.isEmpty)
             #expect(model.signInStep[.claude] == .failed("Saved accounts could not be read."))
             #expect(model.signInStep[.codex] == .failed("Saved accounts could not be read."))

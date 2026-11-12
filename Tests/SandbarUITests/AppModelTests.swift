@@ -26,6 +26,18 @@ func eventually(_ what: Comment, _ isSo: @MainActor () async -> Bool) async thro
     }
 }
 
+@MainActor func ends(_ what: Comment, _ work: @escaping @MainActor () async -> Void) async throws {
+    @MainActor final class Mark {
+        var isSet = false
+    }
+    let ended = Mark()
+    Task {
+        await work()
+        ended.isSet = true
+    }
+    try await eventually(what) { ended.isSet }
+}
+
 actor GitHubStub {
     static let deviceCode = """
         {"device_code": "3584d83530557fdd1f46af8289938c8ef79f9dc5", "user_code": "WDJB-MJHT",
@@ -294,7 +306,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
 
     @Test func aRefreshWritesTheSavedCopy() async throws {
         try await withModel { model, github, files in
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(await github.requests == 1)
             #expect(model.list.mine.map(\.lead.number) == [41250])
             #expect(model.snapshot.pullRequests.readAt == Self.now)
@@ -311,7 +323,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             #expect(model.isRefreshing)
             #expect(model.status == "Updating…")
 
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(await github.requests == 1)
 
             await github.release()
@@ -323,7 +335,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
 
     @Test func openingThePanelRefreshesUnlessTheLastAskIsUnder15SecondsOld() async throws {
         try await withModel { model, github, _ in
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(await github.requests == 1)
 
             model.now = Self.now + 10
@@ -341,7 +353,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
 
     @Test func withoutANetworkTheFooterSaysOfflineAndTheNumberDims() async throws {
         try await withModel { model, _, _ in
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             model.now = Self.now + 840
             #expect(model.status == "Updated 14m ago")
             #expect(!model.isOffline)
@@ -355,11 +367,11 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
 
     @Test func nothingRefreshesWithoutANetwork() async throws {
         try await withModel { model, github, _ in
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             model.hasNetwork = false
 
             model.now += 100
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             #expect(await github.requests == 1, "the timer's turn")
 
             model.now += 100
@@ -367,14 +379,14 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             try await settled(model)
             #expect(await github.requests == 1, "opening the panel")
 
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(await github.requests == 1, "the footer's button")
         }
     }
 
     @Test func theNetworkComingBackRefreshesAtOnce() async throws {
         try await withModel { model, github, _ in
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             model.hasNetwork = false
             model.now = Self.now + 840
             try await settled(model)
@@ -396,7 +408,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             workspace.notificationCenter.post(name: NSWorkspace.willSleepNotification, object: workspace)
             try await settled(model)
             model.now += 61
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             let whileAsleep = await github.requests
             #expect(whileAsleep == 1)
 
@@ -450,7 +462,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             #expect(model.snapshot.accounts.allSatisfy { $0.limits.askedAt == Self.now })
 
             model.now = Self.now + 400
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(model.snapshot.accounts.map(\.account) == [accounts[1], accounts[0]])
             #expect(model.snapshot.accounts.allSatisfy { $0.limits.askedAt == Self.now + 400 })
         }
@@ -534,8 +546,9 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             Task { await model.refresh(.pullRequests) }
             try await eventually("GitHub is asked again") { await github.requests == 2 }
 
-            await model.useExisting(.claude)
+            try await ends("the sign-in on this Mac is taken or refused") { await model.useExisting(.claude) }
             try #require(model.accounts.count == 1)
+            try await Task.sleep(for: .milliseconds(100))  // the new refresh meets the one in flight, not its end
             #expect(model.snapshot.accounts.isEmpty)
 
             await github.release()
@@ -587,7 +600,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             #expect(model.snapshot.accounts.first?.limits.trouble == .signedOut)
             #expect(await maker.asked == 0)
 
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await eventually("the limits are read through the new copy") {
                 model.snapshot.accounts.first?.limits.value.map(\.label) == ["Week"]
             }
@@ -598,12 +611,12 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             let new = copies.appending(path: "2.1.401/claude")
             try FileManager.default.setAttributes([.modificationDate: Self.now - 14 * 86_400], ofItemAtPath: new.path)
             model.now = Self.now + 86_399
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await home.settled()
             #expect(await maker.asked == 1, "within the day")
 
             model.now = Self.now + 86_400
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await eventually("the maker is asked again") { await maker.asked == 2 }
         }
     }
@@ -622,7 +635,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             try await started(model, github)
             #expect(model.snapshot.accounts.first?.limits.value.map(\.label) == ["Week"])
 
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await home.settled()
             #expect(await maker.asked == 0)
         }
@@ -646,18 +659,18 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             #expect(model.snapshot.accounts.first?.limits.trouble == .failed)
 
             model.now = Self.now + 400
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             try await home.settled()
             #expect(await maker.asked == 1, "once while it stays broken")
 
             try Data().write(to: Fake.beside(copy, "mended"))
             model.now = Self.now + 800
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             #expect(model.snapshot.accounts.first?.limits.trouble == nil)
 
             try FileManager.default.removeItem(at: Fake.beside(copy, "mended"))
             model.now = Self.now + 1_200
-            await model.refresh(.all)
+            try await ends("the refresh ends") { await model.refresh(.all) }
             try await eventually("the maker is asked again") { await maker.asked == 2 }
         }
     }
@@ -677,7 +690,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             try await started(model, github)
             try await eventually("the failed reading asks the maker") { await maker.asked == 1 }
 
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await Task.sleep(for: .milliseconds(50))
             #expect(await maker.asked == 1, "the old copy's turn waits for the renewal in flight")
             await answers.open()
@@ -696,7 +709,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
             try await started(model, github)
             #expect(model.toolErrors.isEmpty)
 
-            await model.refreshWhatIsDue()
+            try await ends("the refresh ends") { await model.refreshWhatIsDue() }
             try await eventually("the failure is kept") { model.toolErrors[.claude] != nil }
             #expect(model.snapshot.accounts.first?.limits.value.map(\.label) == ["Week"])
         }
@@ -735,7 +748,7 @@ func withHome(fresh: Bool = false, _ body: @MainActor (Home) async throws -> Voi
         #expect(model.accounts.map(\.name) == ["Work", "Personal", "Codex"])
         #expect(model.ring == .used(0.52, .normal))
 
-        await model.refresh(.all)
+        try await ends("the refresh ends") { await model.refresh(.all) }
         model.panelOpened()
         try await settled(model)
         #expect(model.snapshot == stage("offline"))

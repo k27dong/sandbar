@@ -130,7 +130,7 @@ import Testing
             let github = GitHubStub()
             await github.answerTheCodeWith(#"{"error": "expired_token"}"#)
             let model = home.model(send: github.send)
-            await model.connectGitHub()
+            try await ends("the code sign-in ends") { await model.connectGitHub() }
             for picture in try pictures("code-expired", of: model) {
                 #expect(picture.pixelsHigh == 237 * 2)
                 #expect(hasWarningText(picture, rowTop: Self.firstRow))
