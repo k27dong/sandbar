@@ -24,10 +24,12 @@ struct CommandTests {
         #expect(output.standardOutput.count == 1_048_576)
     }
 
-    @Test func aMissingProgramIsMissing() async {
+    @Test func aMissingProgramIsMissingAtOnce() async {
+        let start = ContinuousClock.now
         await #expect(throws: ToolError.missing) {
             try await Command.run(URL(filePath: "/nonexistent/tool"))
         }
+        #expect(ContinuousClock.now - start < .milliseconds(100))
     }
 
     @Test func aProgramStillBeingWrittenStartsOnceItIsDone() async throws {
@@ -36,7 +38,7 @@ struct CommandTests {
         try #require(descriptor >= 0)
         let writer = FileHandle(fileDescriptor: descriptor, closeOnDealloc: false)
         let finishing = Task {
-            try await Task.sleep(for: .milliseconds(100))
+            try await Task.sleep(for: .milliseconds(50))
             try writer.close()
         }
         let output = try await Command.run(program)

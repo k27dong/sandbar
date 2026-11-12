@@ -158,6 +158,14 @@ struct ToolDownloadTests {
 }
 
 struct ToolDownloadLiveTests {
+    final class Sums: @unchecked Sendable {  // locked; `sha256` cannot await `Command.run`
+        private let lock = NSLock()
+        private var byFile: [URL: String] = [:]
+
+        func keep(_ sum: String, for file: URL) { lock.withLock { byFile[file] = sum } }
+        func sum(for file: URL) -> String? { lock.withLock { byFile[file] } }
+    }
+
     struct AccountAnswer: Decodable, Sendable {
         struct Account: Decodable, Sendable {
             var type: String
@@ -170,26 +178,19 @@ struct ToolDownloadLiveTests {
     }
 
     @Test(.enabled(if: Live.isOn)) func codexFromTheRealReleaseAnswersSignedOut() async throws {
-        let parent = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
-        var folder: URL { parent.appending(path: "Tools") }
+        let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+        let sums = Sums()
         let download = ToolDownload(
             folder: folder,
             fetch: { address in try await URLSession.shared.data(from: address).0 },
             download: { from, to in
                 let (file, _) = try await URLSession.shared.download(from: from)
                 try FileManager.default.moveItem(at: file, to: to)
+                let summed = try await Command.run(URL(filePath: "/usr/bin/sha256sum"), [to.path])
+                try #require(summed.status == 0)
+                sums.keep(String(String(decoding: summed.standardOutput, as: UTF8.self).prefix { $0 != " " }), for: to)
             },
-            sha256: { file in
-                let process = Process()
-                process.executableURL = URL(filePath: "/usr/bin/sha256sum")
-                process.arguments = [file.path]
-                let output = Pipe()
-                process.standardOutput = output
-                try process.run()
-                let printed = output.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
-                return String(String(decoding: printed, as: UTF8.self).prefix { $0 != " " })
-            }
+            sha256: { file in try #require(sums.sum(for: file)) }
         )
         let program = try await download.install(.codex)
         let home = folder.appending(path: "codex-home")

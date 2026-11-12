@@ -144,12 +144,9 @@ package enum Command {
         input: Any, output: Any, error: Any
     ) throws -> Launched {
         let (exits, exited) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
-        var unblocked = sigset_t()
-        var blocked = sigset_t()
-        sigemptyset(&unblocked)
-        pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // the program inherits it; worker threads block SIGTERM
-        defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
-        for _ in 1...10 {
+        var attempt = 0
+        while true {
+            attempt += 1
             let process = Process()
             process.executableURL = program
             process.arguments = arguments
@@ -159,16 +156,24 @@ package enum Command {
             process.standardError = error
             process.terminationHandler = { exited.yield($0.terminationStatus) }
             do {
-                try launching.withLock { try process.run() }
+                try launching.withLock {
+                    var unblocked = sigset_t()
+                    var blocked = sigset_t()
+                    sigemptyset(&unblocked)
+                    pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // inherited; pool threads block TERM
+                    defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
+                    try process.run()
+                }
                 let exit = Task { await exits.first { _ in true }! }  // nothing cancels this task
                 return Launched(process: process, exit: exit)
             } catch let failure as NSError {
                 let cause = failure.userInfo[NSUnderlyingErrorKey] as? NSError ?? failure
-                guard cause.domain == NSPOSIXErrorDomain, cause.code == Int(ETXTBSY) else { throw ToolError.missing }
+                guard cause.domain == NSPOSIXErrorDomain, cause.code == Int(ETXTBSY), attempt < 10 else {
+                    throw ToolError.missing
+                }
                 Thread.sleep(forTimeInterval: 0.025)  // a launch elsewhere still holds the just-written file open
             }
         }
-        throw ToolError.missing
     }
 
     private static let launching = NSLock()  // on Linux a program inherits every descriptor made while it is spawned
