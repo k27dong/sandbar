@@ -1,0 +1,80 @@
+import AppKit
+
+package final class StatusItem {
+    package enum Ring: Equatable {
+        case none
+        case used(Double)
+    }
+
+    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let onClick: () -> Void
+
+    package init(onClick: @escaping () -> Void) {
+        self.onClick = onClick
+        item.button?.target = self
+        item.button?.action = #selector(clicked)
+    }
+
+    package var button: NSStatusBarButton? { item.button }
+
+    package func show(ring: Ring, count: Int, dimmed: Bool) {
+        let tone: NSColor? =
+            if case .used(let share) = ring, share >= 0.8 { share >= 1 ? Self.red : Self.orange } else { nil }
+        let number = "\(count)"
+        let numberStart: CGFloat = 22
+        let numberWidth = ceil(NSAttributedString(string: number, attributes: [.font: Self.numberFont]).size().width)
+        let size = NSSize(width: numberStart + numberWidth, height: 18)
+        let picture = NSImage(size: size, flipped: false) { @Sendable _ in
+            let ink = NSColor.textColor
+            let center = NSPoint(x: 9, y: 9)
+            let track = NSBezierPath()
+            track.lineWidth = 2.2
+            track.appendArc(withCenter: center, radius: 6.6, startAngle: 360, endAngle: 0, clockwise: true)
+            switch ring {
+            case .none:
+                track.setLineDash([2.3, 2.5], count: 2, phase: 0)
+                ink.withAlphaComponent(0.6).setStroke()
+                track.stroke()
+            case .used(let share):
+                ink.withAlphaComponent(0.28).setStroke()
+                track.stroke()
+                let arc = NSBezierPath()
+                arc.lineWidth = 2.2
+                arc.lineCapStyle = .round
+                arc.appendArc(
+                    withCenter: center, radius: 6.6, startAngle: 90, endAngle: 90 - 360 * min(1, max(0, share)),
+                    clockwise: true)
+                (tone ?? ink).setStroke()
+                arc.stroke()
+            }
+            let font = Self.numberFont
+            NSAttributedString(
+                string: number,
+                attributes: [.font: font, .foregroundColor: ink.withAlphaComponent(dimmed ? 0.55 : 1)]
+            ).draw(
+                with: NSRect(x: numberStart, y: center.y - font.capHeight / 2, width: numberWidth, height: 0),
+                options: [], context: nil)
+            return true
+        }
+        picture.isTemplate = tone == nil
+        item.button?.image = picture
+    }
+
+    @objc private func clicked() {
+        onClick()
+    }
+
+    private nonisolated static var numberFont: NSFont { .monospacedDigitSystemFont(ofSize: 13, weight: .semibold) }
+
+    private static let orange = color(light: 0xF08A00, dark: 0xFF9F0A)
+    private static let red = color(light: 0xFF3B30, dark: 0xFF453A)
+
+    private static func color(light: Int, dark: Int) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let hex = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(
+                srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        }
+    }
+}
