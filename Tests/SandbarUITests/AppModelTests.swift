@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import SandbarCore
 import SandbarUI
 import Testing
@@ -26,7 +26,7 @@ struct AppModelTests {
                 {"id": "PR_41250", "number": 41250, "title": "Read saved carts through one cart reader",
                  "url": "https://github.com/acme/storefront/pull/41250", "isDraft": false,
                  "createdAt": "2026-11-09T18:00:00Z", "updatedAt": "2026-11-12T16:00:00Z",
-                 "author": {"login": "kd", "avatarUrl": "https://avatars.githubusercontent.com/u/1001?v=4"},
+                 "author": {"login": "kd", "avatarUrl": "https://example.com/faces/kd.png"},
                  "repository": {"nameWithOwner": "acme/storefront"},
                  "baseRefName": "main", "headRefName": "cart-reader", "reviewDecision": "APPROVED",
                  "latestOpinionatedReviews": {"nodes": []}, "isInMergeQueue": false, "stack": null,
@@ -69,9 +69,11 @@ struct AppModelTests {
         _ body: @MainActor (AppModel, GitHub, AppModel.Files) async throws -> Void
     ) async throws {
         try await withDefaults { defaults in
+            let folder = FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            defer { #expect(throws: Never.self) { try FileManager.default.removeItem(at: folder) } }
             let github = GitHub()
-            let files = AppModel.Files(
-                folder: FileManager.default.temporaryDirectory.appending(path: "sandbar-\(UUID().uuidString)"))
+            let files = AppModel.Files(folder: folder)
             let model = AppModel(
                 preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files)
             try await body(model, github, files)
@@ -81,6 +83,11 @@ struct AppModelTests {
     private func settled(_ model: AppModel) async {
         for _ in 0..<3 { await Task.yield() }
         while model.isRefreshing { await Task.yield() }
+    }
+
+    private func started(_ model: AppModel, _ github: GitHub) async {
+        model.start()
+        while await github.requests == 0 || model.isRefreshing { await Task.yield() }
     }
 
     @Test func everySettingStartsAtItsDefault() async throws {
@@ -195,6 +202,82 @@ struct AppModelTests {
             await settled(model)
             #expect(await github.requests == 2)
             #expect(model.snapshot.pullRequests.askedAt == Self.now + 16)
+        }
+    }
+
+    @Test func withoutANetworkTheFooterSaysOfflineAndTheNumberDims() async throws {
+        try await withModel { model, _, _ in
+            await model.refresh(.all)
+            model.now = Self.now + 840
+            #expect(model.status == "Updated 14m ago")
+            #expect(!model.isOffline)
+
+            model.hasNetwork = false
+            #expect(model.snapshot.pullRequests.trouble == nil)
+            #expect(model.status == "Offline. Updated 14m ago")
+            #expect(model.isOffline)
+        }
+    }
+
+    @Test func nothingRefreshesWithoutANetwork() async throws {
+        try await withModel { model, github, _ in
+            await model.refresh(.all)
+            model.hasNetwork = false
+
+            model.now += 100
+            await model.refreshWhatIsDue()
+            #expect(await github.requests == 1, "the timer's turn")
+
+            model.now += 100
+            model.panelOpened()
+            await settled(model)
+            #expect(await github.requests == 1, "opening the panel")
+
+            await model.refresh(.all)
+            #expect(await github.requests == 1, "the footer's button")
+        }
+    }
+
+    @Test func theNetworkComingBackRefreshesAtOnce() async throws {
+        try await withModel { model, github, _ in
+            await model.refresh(.all)
+            model.hasNetwork = false
+            model.now = Self.now + 840
+            await settled(model)
+            #expect(await github.requests == 1)
+
+            model.hasNetwork = true
+            await settled(model)
+            #expect(await github.requests == 2)
+            #expect(model.snapshot.pullRequests.readAt == Self.now + 840)
+        }
+    }
+
+    @Test func nothingRefreshesBetweenSleepAndWake() async throws {
+        try await withModel { model, github, _ in
+            await started(model, github)
+            try #require(model.hasNetwork)
+            let workspace = NSWorkspace.shared
+
+            workspace.notificationCenter.post(name: NSWorkspace.willSleepNotification, object: workspace)
+            await settled(model)
+            model.now += 61
+            await model.refreshWhatIsDue()
+            let whileAsleep = await github.requests
+            #expect(whileAsleep == 1)
+
+            workspace.notificationCenter.post(name: NSWorkspace.didWakeNotification, object: workspace)
+            await settled(model)
+            #expect(await github.requests == whileAsleep + 1)
+        }
+    }
+
+    @Test func aSecondStartDoesNothing() async throws {
+        try await withModel { model, github, _ in
+            await started(model, github)
+            model.start()
+            await settled(model)
+            #expect(await github.requests == 1)
         }
     }
 

@@ -28,15 +28,17 @@ import os
     package private(set) var isRefreshing = false
     package var openStacks: Set<Stack.ID> = []
     package var closePanel: () -> Void = {}
+    package var hasNetwork = true {
+        didSet { if hasNetwork, !oldValue { refreshAtOnce() } }
+    }
 
     private static let log = Logger(subsystem: "com.k27dong.sandbar", category: "snapshot")
 
     private let github: GitHubClient?
     private let files: Files
     private let network = NWPathMonitor()
-    private var isOnline = true
     private var isAsleep = false
-    private var followsTheClock = false
+    private var isStarted = false
     private var isFixed = false
 
     package init(
@@ -69,7 +71,7 @@ import os
 
     package var isOffline: Bool {
         let trouble = snapshot.pullRequests.trouble
-        return !isOnline || trouble == .offline || trouble == .failed
+        return !hasNetwork || trouble == .offline || trouble == .failed
     }
 
     package var status: String {
@@ -81,35 +83,42 @@ import os
     }
 
     package func start() {
+        guard !isStarted else { return }
+        isStarted = true
         snapshot = SavedSnapshot.read(from: files.snapshot)
-        followsTheClock = true
-        let workspace = NSWorkspace.shared.notificationCenter
-        workspace.addObserver(
-            self, selector: #selector(willSleep), name: NSWorkspace.willSleepNotification, object: nil)
-        workspace.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
-        network.pathUpdateHandler = { [weak self] path in
-            let isOnline = path.status == .satisfied
+        let notices = NSWorkspace.shared.notificationCenter
+        _ = notices.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: nil) { [weak self] _ in
+            Task { @MainActor in self?.isAsleep = true }
+        }  // never taken back, like the one below: a started model listens for as long as the app runs
+        _ = notices.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
-                let regained = isOnline && !self.isOnline
-                self.isOnline = isOnline
-                if regained { self.refreshAtOnce() }
+                self?.isAsleep = false
+                self?.refreshAtOnce()
             }
         }
+        network.pathUpdateHandler = { [weak self] path in
+            let hasNetwork = path.status == .satisfied
+            Task { @MainActor in self?.hasNetwork = hasNetwork }
+        }
         network.start(queue: .main)
-        Task {
-            await refresh(.all)
+        Task { [weak self] in
+            await self?.refresh(.all)
             while true {
                 do { try await Task.sleep(for: .seconds(5)) } catch { return }
-                now = .now
-                let due = snapshot.due(at: now)
-                if !isAsleep, isOnline, !due.isEmpty { await refresh(due) }
+                guard let self else { return }
+                self.now = .now
+                await self.refreshWhatIsDue()
             }
         }
     }
 
+    package func refreshWhatIsDue() async {
+        let due = snapshot.due(at: now)
+        if !due.isEmpty { await refresh(due) }
+    }
+
     package func refresh(_ parts: Snapshot.Parts) async {
-        guard !isFixed, !isRefreshing else { return }
+        guard !isFixed, hasNetwork, !isAsleep, !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
         snapshot = await snapshot.refreshed(parts, github: github, accounts: [], tools: [:], now: now)
@@ -121,7 +130,7 @@ import os
     }
 
     package func panelOpened() {
-        if followsTheClock { now = .now }
+        if isStarted { now = .now }
         if let asked = snapshot.lastAsked, now.timeIntervalSince(asked) < 15 { return }
         Task { await refresh(.all) }
     }
@@ -131,17 +140,8 @@ import os
         closePanel()
     }
 
-    @objc private func willSleep() {
-        isAsleep = true
-    }
-
-    @objc private func didWake() {
-        isAsleep = false
-        refreshAtOnce()
-    }
-
     private func refreshAtOnce() {
-        now = .now
+        if isStarted { now = .now }
         Task { await refresh(.all) }
     }
 }
