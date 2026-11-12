@@ -15,13 +15,13 @@ package final class PanelWindow {
             close()
             return
         }
-        guard let menuBar = button.window else { return }
+        guard let buttonWindow = button.window else { return }
 
         let hosting = NSHostingView(rootView: content)
         let size = hosting.fittingSize
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
-        let item = menuBar.convertToScreen(button.convert(button.bounds, to: nil))
+        let item = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let panel = KeyPanel(
             contentRect: NSRect(
                 x: item.maxX - size.width, y: item.minY - 6 - size.height, width: size.width, height: size.height),
@@ -30,7 +30,6 @@ package final class PanelWindow {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.transient, .ignoresCycle]
 
         let cornerRadius: CGFloat = 14

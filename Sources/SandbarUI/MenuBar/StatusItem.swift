@@ -21,15 +21,18 @@ package final class StatusItem {
         let tone: NSColor? =
             if case .used(let share) = ring, share >= 0.8 { share >= 1 ? Self.red : Self.orange } else { nil }
         let number = "\(count)"
-        let numberStart: CGFloat = 22
+        let side: CGFloat = 18
+        let numberStart = side + 4
         let numberWidth = ceil(NSAttributedString(string: number, attributes: [.font: Self.numberFont]).size().width)
-        let size = NSSize(width: numberStart + numberWidth, height: 18)
+        let size = NSSize(width: numberStart + numberWidth, height: side)
         let picture = NSImage(size: size, flipped: false) { @Sendable _ in
             let ink = NSColor.textColor
-            let center = NSPoint(x: 9, y: 9)
+            let center = NSPoint(x: side / 2, y: side / 2)
             let track = NSBezierPath()
             track.lineWidth = 2.2
-            track.appendArc(withCenter: center, radius: 6.6, startAngle: 360, endAngle: 0, clockwise: true)
+            track.appendArc(
+                withCenter: center, radius: 6.6, startAngle: 360, endAngle: 0,
+                clockwise: true)  // from 3 o'clock, so the dashes fall where the design draws them
             switch ring {
             case .none:
                 track.setLineDash([2.3, 2.5], count: 2, phase: 0)
@@ -56,7 +59,7 @@ package final class StatusItem {
                 options: [], context: nil)
             return true
         }
-        picture.isTemplate = tone == nil
+        picture.isTemplate = tone == nil  // the menu bar inks a template itself; a colored ring brings its own ink
         item.button?.image = picture
     }
 

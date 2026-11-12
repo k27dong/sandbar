@@ -3,7 +3,6 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key><string>Sandbar</string>
-    <key>CFBundleDisplayName</key><string>Sandbar</string>
     <key>CFBundleIdentifier</key><string>com.k27dong.sandbar</string>
     <key>CFBundleVersion</key><string>0.1.0</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
