@@ -15,6 +15,13 @@ on:
       - .github/workflows/mac.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-${{ github.ref }}-${{ github.event.label.name }}  # with the label, so that another label's event cancels no Mac run
+  cancel-in-progress: true
+
 jobs:
   mac:
     if: github.event_name != 'pull_request' || github.event.label.name == 'mac'
@@ -22,6 +29,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: swift --version
       - run: swift test -j 3
         env:
