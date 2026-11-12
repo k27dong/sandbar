@@ -68,7 +68,7 @@ import Testing
             let model = home.model()
             model.start()
             try await ends("the sign-in ends") { await model.addAccount(.codex) }
-            #expect(model.signInStep[.codex] == .failed("The read failed."))
+            #expect(model.signInStep[.codex] == .failed("Codex could not be fetched."))
             let profiles = try entries(of: home.files.profiles)
             #expect(profiles.isEmpty)
         }

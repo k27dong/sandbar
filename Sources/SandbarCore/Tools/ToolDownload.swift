@@ -8,11 +8,22 @@ import Foundation
     import CryptoKit
 #endif
 
-package enum Tool: String, Codable, CaseIterable, Sendable { case claude, codex }
+package enum Tool: String, Codable, CaseIterable, Sendable {
+    case claude, codex
+
+    package var programName: String {
+        switch self {
+        case .claude: "Claude Code"
+        case .codex: "Codex"
+        }
+    }
+}
 
 package enum DownloadError: Error, Equatable {
     case checksum(expected: String, got: String)
     case noBuild(String)
+    case undated(URL)
+    case failed(String)
 }
 
 package struct ToolDownload: Sendable {
@@ -89,7 +100,7 @@ package struct ToolDownload: Sendable {
     package func isOld(_ tool: Tool, at now: Date) throws -> Bool {
         guard let program = try installed(tool) else { return false }
         let attributes = try FileManager.default.attributesOfItem(atPath: program.path)
-        guard let installedAt = attributes[.modificationDate] as? Date else { throw CocoaError(.fileReadUnknown) }
+        guard let installedAt = attributes[.modificationDate] as? Date else { throw DownloadError.undated(program) }
         return now.timeIntervalSince(installedAt) >= Self.copyLifetime
     }
 

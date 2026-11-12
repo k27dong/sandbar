@@ -53,7 +53,7 @@ import os
         didSet { if hasNetwork, !oldValue { refreshAtOnce() } }
     }
 
-    static let log = Logger(subsystem: "com.k27dong.sandbar", category: "snapshot")
+    static let log = Logger(subsystem: "com.k27dong.sandbar", category: "model")
 
     let files: Files
     let send: GitHubClient.Send
@@ -385,6 +385,8 @@ import os
                 self?.owe(.limits)
             } catch {
                 self?.toolErrors[tool] = error
+                let cause = String(describing: error)
+                Self.log.error("\(tool.programName, privacy: .public) was not renewed: \(cause, privacy: .public)")
             }
             self?.renewing.remove(tool)
         }

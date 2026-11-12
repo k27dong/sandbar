@@ -144,7 +144,11 @@ extension AppModel {
                     program = found
                 } else {
                     signInStep[tool] = .fetching
-                    program = try await download.install(tool)
+                    do {
+                        program = try await download.install(tool)
+                    } catch {
+                        throw DownloadError.failed(String(describing: error))  // any cause reads as a failed fetch
+                    }
                 }
                 let account = Account(
                     tool: tool, name: tool.title, plan: "", profile: try Account.makeProfile(in: files.profiles))

@@ -104,7 +104,6 @@ private struct ToolRow: View {
 
     var body: some View {
         let icon: Icon = tool == .claude ? .claude : .codex
-        let program = tool == .claude ? "Claude Code" : "Codex"
         let step = model.signInStep[tool] ?? .idle
         let cancel = HStack(spacing: 10) {
             Spinner()
@@ -121,7 +120,7 @@ private struct ToolRow: View {
         } else {
             switch step {
             case .fetching:
-                ConnectionRow(icon: icon, name: tool.title, detail: "Fetching \(program)…") { cancel }
+                ConnectionRow(icon: icon, name: tool.title, detail: "Fetching \(tool.programName)…") { cancel }
             case .waitingForBrowser:
                 ConnectionRow(
                     icon: icon, name: tool.title, detail: "Finish in your browser",
@@ -133,7 +132,7 @@ private struct ToolRow: View {
             case .idle:
                 switch model.existingSignIns[tool] {
                 case nil:
-                    ConnectionRow(icon: icon, name: tool.title, detail: "Read limits from \(program)") {}
+                    ConnectionRow(icon: icon, name: tool.title, detail: "Read limits from \(tool.programName)") {}
                 case .unreadable(let sentence):
                     ConnectionRow(icon: icon, name: tool.title, detail: sentence, isFailure: true) { signIn }
                 case .usable, .absent:
