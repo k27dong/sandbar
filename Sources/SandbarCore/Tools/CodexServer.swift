@@ -14,9 +14,9 @@ package actor CodexServer {
             tool, tool.lastPathComponent == "codex" ? ["app-server"] : [], environment: environment)
         self.timeout = timeout
         (notices, announce) = AsyncStream.makeStream()
-        Task { [running] in
-            for await line in running.lines { self.receive(line) }
-            self.end(status: await running.status())
+        Task { [weak self, running] in
+            for await line in running.lines { await self?.receive(line) }
+            await self?.end(status: await running.status())
         }
         do {
             struct Client: Encodable, Sendable {
@@ -38,6 +38,11 @@ package actor CodexServer {
             running.stop()
             throw error
         }
+    }
+
+    deinit {
+        running.stop()
+        announce.finish()
     }
 
     package func ask<Answer: Decodable & Sendable>(
@@ -94,8 +99,8 @@ package actor CodexServer {
 
     private func receive(_ line: String) {
         let data = Data(line.utf8)
-        // a line that is not a JSON message answers nothing and announces nothing
-        guard let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        guard let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any]  // not JSON: no one to tell
+        else { return }
         if let method = message["method"] as? String,
             let parameters = try? JSONSerialization.data(
                 withJSONObject: message["params"] ?? [String: Any](), options: .fragmentsAllowed)

@@ -26,6 +26,7 @@ struct CodexServerTests {
         try FakeTool.script(
             named: name,
             """
+            echo $$ > "$(dirname "$0")/pid"
             while read -r line; do
               id=$(printf '%s\\n' "$line" | sed -n 's/.*"id":\\([0-9]*\\).*/\\1/p')
               case "$line" in
@@ -91,5 +92,17 @@ struct CodexServerTests {
         let answer: Argument = try await server.ask("account/read", Self.accountRead)
         #expect(answer.argument == argument)
         await server.stop()
+    }
+
+    @Test func aDroppedServerEndsItsTool() async throws {
+        let tool = try server(answeringAccountRead: ":")
+        _ = try await CodexServer(tool: tool, environment: [:])
+        let recorded = try String(contentsOf: tool.deletingLastPathComponent().appending(path: "pid"), encoding: .utf8)
+        let pid = try #require(Int32(recorded.trimmingCharacters(in: .whitespacesAndNewlines)))
+        let start = ContinuousClock.now
+        while kill(pid, 0) == 0, ContinuousClock.now - start < .seconds(2) {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(kill(pid, 0) == -1)
     }
 }
