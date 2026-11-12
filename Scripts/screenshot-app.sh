@@ -32,13 +32,23 @@ until item 1 "$action" || item 2 "$action"; do
     sleep 1
 done
 
+capture() {
+    sleep 1
+    mkdir -p "$(dirname "$1")"
+    screencapture -x "$1"
+}
 case "$then" in
     settings) sleep 1 && press , "command down" ;;
     shortcut) press p "option down, command down" ;;
 esac
-sleep 1
-mkdir -p "$(dirname "$output")"
-screencapture -x "$output"
+capture "$output"
+if [ "$then" = settings ]; then
+    for pane in "Menu Bar" Accounts Notifications; do
+        osascript -e "tell application \"System Events\" to tell (first process whose unix id is $program)" \
+            -e "click button \"$pane\" of toolbar 1 of window 1" -e 'end tell' >/dev/null
+        capture "${output%.png}-$(echo "$pane" | tr -d ' ' | tr '[:upper:]' '[:lower:]').png"
+    done
+fi
 if ! kill -0 "$program" 2>/dev/null; then
     echo "Sandbar ended before its screenshot was taken" >&2
     exit 1

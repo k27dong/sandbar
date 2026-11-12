@@ -23,7 +23,7 @@ package final class SettingsWindow {
         let window = window
         tabs.show(pane)
         if !window.isVisible { window.center() }
-        NSApplication.shared.activate()
+        NSApplication.shared.activate(ignoringOtherApps: true)  // a plain activate() waits for the active app to yield
         window.makeKeyAndOrderFront(nil)
     }
 }
