@@ -73,14 +73,12 @@ struct GitHubSignInTests {
     }
 
     @Test func ghExitingOneThrows() async throws {
-        await #expect(throws: GitHubError.signedOut) {
-            try await GitHubSignIn.ghToken(gh: URL(filePath: "/usr/bin/false"))
-        }
+        let gh = try FakeTool.script(named: "gh", "echo 'You are not logged into any GitHub hosts.' >&2; exit 1")
+        await #expect(throws: GitHubError.signedOut) { try await GitHubSignIn.ghToken(gh: gh) }
     }
 
     @Test func ghPrintingNothingThrows() async throws {
-        await #expect(throws: GitHubError.signedOut) {
-            try await GitHubSignIn.ghToken(gh: URL(filePath: "/usr/bin/true"))
-        }
+        let gh = try FakeTool.script(named: "gh", "exit 0")
+        await #expect(throws: GitHubError.signedOut) { try await GitHubSignIn.ghToken(gh: gh) }
     }
 }
