@@ -772,11 +772,11 @@ import Testing
             #expect(model.accountsAreLocked)
 
             model.rename(accounts[0], to: "Renamed")
-            await model.remove(accounts[1])
-            await model.addAccount(.claude)
-            await model.useExisting(.codex)
-            await model.connectGitHub()
-            await model.useGhSignIn()
+            try await ends("the remove does nothing") { await model.remove(accounts[1]) }
+            try await ends("the sign-in does nothing") { await model.addAccount(.claude) }
+            try await ends("taking the Mac's sign-in does nothing") { await model.useExisting(.codex) }
+            try await ends("connecting does nothing") { await model.connectGitHub() }
+            try await ends("taking gh's sign-in does nothing") { await model.useGhSignIn() }
             model.signOutOfGitHub()
             model.findSignIns()
             try await Task.sleep(for: .milliseconds(100))  // a lookup started by mistake would ask for gh by now
