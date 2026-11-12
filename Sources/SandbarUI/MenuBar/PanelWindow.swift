@@ -9,6 +9,7 @@ package final class PanelWindow {
     package init() {}
 
     package var isOpen: Bool { panel != nil }
+    package var onClose: (() -> Void)?
 
     package func toggle(under button: NSStatusBarButton, content: some View) {
         if isOpen {
@@ -72,10 +73,12 @@ package final class PanelWindow {
     }
 
     package func close() {
+        guard let panel else { return }
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
-        panel?.orderOut(nil)
-        panel = nil
+        panel.orderOut(nil)
+        self.panel = nil
+        onClose?()
     }
 }
 

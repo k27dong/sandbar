@@ -92,4 +92,41 @@ package enum Icon: String, CaseIterable {
         template.isTemplate = true
         return Image(nsImage: template)
     }
+
+    package var tint: Color? {
+        switch self {
+        case .open, .approved: .gitHubOpen
+        case .draft: .gitHubDraft
+        case .merging: .gitHubQueue
+        case .changesRequested, .checkFailed: .gitHubFail
+        case .checkPassed: .gitHubPass
+        case .checkRunning: .gitHubRun
+        case .claude: .claudeMark
+        case .codex: .codexMark
+        case .stack, .refresh, .gear, .gitHub: nil
+        }
+    }
+}
+
+extension Color {
+    package static let gitHubOpen = Color(light: 0x1A7F37, dark: 0x3FB950)
+    package static let gitHubDraft = Color(light: 0x59636E, dark: 0x9198A1)
+    package static let gitHubQueue = Color(light: 0x9A6700, dark: 0xD29922)
+    package static let gitHubPass = Color(light: 0x1A7F37, dark: 0x3FB950)
+    package static let gitHubFail = Color(light: 0xD1242F, dark: 0xF85149)
+    package static let gitHubRun = Color(light: 0xBF8700, dark: 0xD29922)
+    package static let usageWarning = Color(light: 0xF08A00, dark: 0xFF9F0A)
+    package static let usageCritical = Color(light: 0xFF3B30, dark: 0xFF453A)
+    package static let claudeMark = Color(light: 0xD97757, dark: 0xE08A6C)
+    package static let codexMark = Color(light: 0x1B1B1D, dark: 0xF2F2F2)
+
+    private init(light: Int, dark: Int) {
+        self.init(
+            nsColor: NSColor(name: nil) { appearance in
+                let hex = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+                return NSColor(
+                    srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
+                    blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+            })
+    }
 }

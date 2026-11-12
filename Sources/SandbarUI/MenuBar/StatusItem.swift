@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 package final class StatusItem {
     package enum Ring: Equatable {
@@ -17,9 +18,18 @@ package final class StatusItem {
 
     package var button: NSStatusBarButton? { item.button }
 
+    package var isHighlighted: Bool {
+        get { item.button?.isHighlighted ?? false }
+        set { item.button?.highlight(newValue) }
+    }
+
     package func show(ring: Ring, count: Int, dimmed: Bool) {
         let tone: NSColor? =
-            if case .used(let share) = ring, share >= 0.8 { share >= 1 ? Self.red : Self.orange } else { nil }
+            if case .used(let share) = ring, share >= 0.8 {
+                NSColor(share >= 1 ? Color.usageCritical : .usageWarning)
+            } else {
+                nil
+            }
         let number = "\(count)"
         let side: CGFloat = 18
         let numberStart = side + 4
@@ -68,16 +78,4 @@ package final class StatusItem {
     }
 
     private nonisolated static var numberFont: NSFont { .monospacedDigitSystemFont(ofSize: 13, weight: .semibold) }
-
-    private static let orange = color(light: 0xF08A00, dark: 0xFF9F0A)
-    private static let red = color(light: 0xFF3B30, dark: 0xFF453A)
-
-    private static func color(light: Int, dark: Int) -> NSColor {
-        NSColor(name: nil) { appearance in
-            let hex = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
-            return NSColor(
-                srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
-                blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-        }
-    }
 }
