@@ -21,17 +21,8 @@ package enum Command {
     ) async throws -> Output {
         let output = try newPipe()
         let error = try newPipe()
-        var started: Launched?
-        for attempt in 1...10 where started == nil {
-            do {
-                started = try launch(
-                    program, arguments, environment, input: FileHandle.nullDevice, output: output, error: error)
-            } catch is FileBusy {
-                guard attempt < 10 else { throw ToolError.missing }
-                try await Task.sleep(for: .milliseconds(25))  // someone still holds the new file open
-            }
-        }
-        guard let launched = started else { throw ToolError.missing }
+        let launched = try await launch(
+            program, arguments, environment, input: FileHandle.nullDevice, output: output, error: error)
         return try await withTaskCancellationHandler {
             try await withThrowingTaskGroup(of: Output?.self) { group in
                 group.addTask {
@@ -59,7 +50,7 @@ package enum Command {
 
     package static func start(
         _ program: URL, _ arguments: [String] = [], environment: [String: String] = [:]
-    ) throws -> Running {
+    ) async throws -> Running {
         let input = try newPipe()
         let output = try newPipe()
         #if canImport(Darwin)
@@ -67,13 +58,8 @@ package enum Command {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
         #endif
-        let launched: Launched
-        do {
-            launched = try launch(
-                program, arguments, environment, input: input, output: output, error: FileHandle.nullDevice)
-        } catch is FileBusy {
-            throw ToolError.missing  // a synchronous start cannot wait without blocking a pool thread
-        }
+        let launched = try await launch(
+            program, arguments, environment, input: input, output: output, error: FileHandle.nullDevice)
         return Running(launched: launched, input: input.fileHandleForWriting, output: output.fileHandleForReading)
     }
 
@@ -156,6 +142,22 @@ package enum Command {
     private static func launch(
         _ program: URL, _ arguments: [String], _ environment: [String: String],
         input: Any, output: Any, error: Any
+    ) async throws -> Launched {
+        var attempt = 0
+        while true {
+            attempt += 1
+            do {
+                return try spawn(program, arguments, environment, input: input, output: output, error: error)
+            } catch {
+                guard isWorthRetrying(error), attempt < 10 else { throw toolError(forStartFailure: error) }
+                try await Task.sleep(for: .milliseconds(25))  // a spawn that is just ending still holds the file
+            }
+        }
+    }
+
+    private static func spawn(
+        _ program: URL, _ arguments: [String], _ environment: [String: String],
+        input: Any, output: Any, error: Any
     ) throws -> Launched {
         let (exits, exited) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
         let process = Process()
@@ -166,30 +168,40 @@ package enum Command {
         process.standardOutput = output
         process.standardError = error
         process.terminationHandler = { exited.yield($0.terminationStatus) }
-        do {
-            try launching.withLock {
-                var unblocked = sigset_t()
-                var blocked = sigset_t()
-                sigemptyset(&unblocked)
-                pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // inherited; pool threads block TERM
-                defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
-                try process.run()
-            }
-        } catch {
-            if isWorthRetrying(error) { throw FileBusy() }
-            throw ToolError.missing
+        try launching.withLock {
+            var unblocked = sigset_t()
+            var blocked = sigset_t()
+            sigemptyset(&unblocked)
+            pthread_sigmask(SIG_SETMASK, &unblocked, &blocked)  // inherited; pool threads block TERM
+            defer { pthread_sigmask(SIG_SETMASK, &blocked, nil) }
+            try process.run()
         }
         let exit = Task { await exits.first { _ in true }! }  // nothing cancels this task
         return Launched(process: process, exit: exit)
     }
 
     package static func isWorthRetrying(_ startFailure: any Error) -> Bool {
-        let failure = startFailure as NSError
-        let cause = failure.userInfo[NSUnderlyingErrorKey] as? NSError ?? failure
+        let cause = cause(of: startFailure)
         return cause.domain == NSPOSIXErrorDomain && cause.code == Int(ETXTBSY)
     }
 
-    private struct FileBusy: Error {}
+    package static func toolError(forStartFailure startFailure: any Error) -> ToolError {
+        let cause = cause(of: startFailure)
+        if cause.domain == NSPOSIXErrorDomain {
+            let code = Int32(truncatingIfNeeded: cause.code)
+            if [ENOENT, ENOTDIR, EACCES, ENOEXEC].contains(code) { return .missing }
+            return .failed(status: code, output: String(cString: strerror(code)))
+        }
+        if cause.domain == NSCocoaErrorDomain, [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(cause.code) {
+            return .missing
+        }
+        return .failed(status: Int32(truncatingIfNeeded: cause.code), output: cause.localizedDescription)
+    }
+
+    private static func cause(of startFailure: any Error) -> NSError {
+        let failure = startFailure as NSError
+        return failure.userInfo[NSUnderlyingErrorKey] as? NSError ?? failure
+    }
 
     private static let launching = NSLock()  // on Linux a program inherits every descriptor made while it is spawned
 

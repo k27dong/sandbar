@@ -10,7 +10,7 @@ package actor CodexServer {
     private var endStatus: Int32?
 
     package init(tool: URL, environment: [String: String], timeout: Duration = .seconds(30)) async throws {
-        running = try Command.start(
+        running = try await Command.start(
             tool, tool.lastPathComponent == "codex" ? ["app-server"] : [], environment: environment)
         self.timeout = timeout
         (notices, announce) = AsyncStream.makeStream()

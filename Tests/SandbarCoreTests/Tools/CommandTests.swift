@@ -4,8 +4,11 @@ import Testing
 
 struct CommandTests {
     static let sh = URL(filePath: "/bin/sh")
-    static let startFailureCases: [(failure: Int32, retried: Bool)] = [
-        (ETXTBSY, true), (ENOENT, false), (EACCES, false), (ENOEXEC, false),
+    static let startFailureCases: [(failure: Int32, retried: Bool, error: ToolError)] = [
+        (ENOENT, false, .missing), (ENOTDIR, false, .missing), (EACCES, false, .missing), (ENOEXEC, false, .missing),
+        (ETXTBSY, true, .failed(status: ETXTBSY, output: "Text file busy")),
+        (EMFILE, false, .failed(status: EMFILE, output: "Too many open files")),
+        (EAGAIN, false, .failed(status: EAGAIN, output: "Resource temporarily unavailable")),
     ]
     static let stubbornCases = ["trap '' TERM; sleep 6", "setsid sleep 6 & sleep 30"]
 
@@ -33,11 +36,18 @@ struct CommandTests {
         }
     }
 
-    @Test(arguments: startFailureCases) func onlyABusyProgramIsRetried(failure: Int32, retried: Bool) {
+    @Test(arguments: startFailureCases) func aFailedStartIsReadHonestly(failure: Int32, retried: Bool, error: ToolError)
+    {
         let started = NSError(
             domain: NSCocoaErrorDomain, code: CocoaError.fileReadUnknown.rawValue,
             userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(failure))])
         #expect(Command.isWorthRetrying(started) == retried)
+        #expect(Command.toolError(forStartFailure: started) == error)
+    }
+
+    @Test func aPathThatIsNotAFileIsMissing() {
+        let started = NSError(domain: NSCocoaErrorDomain, code: NSFileNoSuchFileError)
+        #expect(Command.toolError(forStartFailure: started) == .missing)
     }
 
     @Test func aProgramStillBeingWrittenStartsOnceItIsDone() async throws {
@@ -78,7 +88,7 @@ struct CommandTests {
     }
 
     @Test func aRunningProgramAnswersLineByLine() async throws {
-        let running = try Command.start(Self.sh, ["-c", "while read l; do echo got $l; done"])
+        let running = try await Command.start(Self.sh, ["-c", "while read l; do echo got $l; done"])
         try running.send("ping")
         var lines = running.lines.makeAsyncIterator()
         #expect(await lines.next() == "got ping")
@@ -87,7 +97,7 @@ struct CommandTests {
     }
 
     @Test func aSendToAnEndedProgramThrows() async throws {
-        let running = try Command.start(Self.sh, ["-c", "exit 0"])
+        let running = try await Command.start(Self.sh, ["-c", "exit 0"])
         _ = await running.status()
         #expect(throws: (any Error).self) { try running.send("ping") }
     }
@@ -96,7 +106,7 @@ struct CommandTests {
         let start = ContinuousClock.now
         var lines: AsyncStream<String>.Iterator
         do {
-            let running = try Command.start(Self.sh, ["-c", "sleep 30"])
+            let running = try await Command.start(Self.sh, ["-c", "sleep 30"])
             lines = running.lines.makeAsyncIterator()
         }
         #expect(await lines.next() == nil)
