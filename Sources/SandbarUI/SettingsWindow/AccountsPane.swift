@@ -179,7 +179,7 @@ private struct AccountRow<Title: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if let icon { icon.image.foregroundStyle(icon.tint ?? .primary) }
+            if let icon { icon.image.foregroundStyle(icon.tint ?? .primary).accessibilityHidden(true) }
             VStack(alignment: .leading, spacing: 1) {
                 title
                 if let detail {

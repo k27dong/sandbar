@@ -2,7 +2,6 @@ import AppKit
 import Observation
 import SandbarCore
 import SandbarUI
-import SwiftUI
 import os
 
 @main
@@ -24,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var statusItem = StatusItem { [unowned self] in self.togglePanel() }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        panel.onClose = { [unowned self] in self.statusItem.isHighlighted = false }
+        panel.onClose = { [unowned self] in self.statusItem.button?.highlight(false) }
         statusItem.show(ring: .none, count: nil, dimmed: false)
 
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
@@ -93,8 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func togglePanel() {  // on its own: in the lazy item's closure Swift warns of an isolated conformance
         guard let model, let button = statusItem.button else { return }
-        panel.toggle(under: button) { maxHeight in PanelView(maxHeight: maxHeight).environment(model) }
-        statusItem.isHighlighted = panel.isOpen
+        panel.toggle(under: button, showing: model)
+        statusItem.button?.highlight(panel.isOpen)
         if panel.isOpen { model.panelOpened() }
     }
 

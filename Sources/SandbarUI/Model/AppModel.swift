@@ -24,6 +24,23 @@ import os
             folder: URL.applicationSupportDirectory.appending(path: "Sandbar", directoryHint: .isDirectory))
     }
 
+    package enum Selection: Hashable {
+        case pullRequest(PullRequest.ID)
+        case fold(Stack.ID)
+    }
+
+    enum Row {
+        case pullRequest(PullRequest)
+        case fold(Stack)
+
+        var selection: Selection {
+            switch self {
+            case .pullRequest(let pullRequest): .pullRequest(pullRequest.id)
+            case .fold(let stack): .fold(stack.id)
+            }
+        }
+    }
+
     private nonisolated struct Listening: ~Copyable {
         var notices: NotificationCenter
         var observers: [any NSObjectProtocol]
@@ -47,6 +64,7 @@ import os
     package let preferences: Preferences
     package var now: Date
     package var openStacks: Set<Stack.ID> = []
+    package var selection: Selection?
     package var closePanel: () -> Void = {}
     package var openSettings: (SettingsWindow.Pane?) -> Void = { _ in }
     package private(set) var launchesAtLogin: Bool
@@ -346,6 +364,7 @@ import os
     }
 
     package func panelOpened() {
+        selection = nil
         if isStarted { now = .now }
         if showsSignIn { findSignIns() }
         if let asked = snapshot.lastAsked, now.timeIntervalSince(asked) < 15 { return }
@@ -370,6 +389,42 @@ import os
     package func open(_ pullRequest: PullRequest) {
         openAddress(pullRequest.url)
         closePanel()
+    }
+
+    /// A stack's rows from top to bottom as the panel shows them, with its fold row when it is long enough to fold.
+    func rows(of stack: Stack) -> [Row] {
+        let pullRequests = stack.shown(isOpen: openStacks.contains(stack.id)).map(Row.pullRequest)
+        let fold = stack.shown(isOpen: false).count < stack.pullRequests.count ? [Row.fold(stack)] : []
+        return preferences.stackOrder == .topFirst ? fold + pullRequests.reversed() : pullRequests + fold
+    }
+
+    private var selectableRows: [Row] {
+        guard showsLists else { return [] }
+        let list = list
+        return list.reviewRequests.map(Row.pullRequest)
+            + list.mine.flatMap { entry in
+                switch entry {
+                case .single(let pullRequest): [Row.pullRequest(pullRequest)]
+                case .stack(let stack): rows(of: stack)
+                }
+            }
+    }
+
+    package func moveSelection(by step: Int) {
+        let rows = selectableRows.map(\.selection)
+        guard let selected = selection.flatMap(rows.firstIndex(of:)) else {
+            selection = step > 0 ? rows.first : rows.last
+            return
+        }
+        selection = rows[min(max(selected + step, 0), rows.count - 1)]
+    }
+
+    package func openSelection() {
+        switch selectableRows.first(where: { $0.selection == selection }) {
+        case .pullRequest(let pullRequest): open(pullRequest)
+        case .fold(let stack): openStacks.formSymmetricDifference([stack.id])
+        case nil: break
+        }
     }
 
     func saveSnapshot() {

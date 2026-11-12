@@ -20,6 +20,10 @@ extension AppModel {
     private static let notSavedNote = "Accounts could not be saved."
 
     package var isSetUp: Bool { isFixed || preferences.isSetUp }
+    var showsLists: Bool {
+        if case .code = gitHub { return false }
+        return isSetUp
+    }
     package var accountsAreLocked: Bool { isFixed || accountAction != nil }
     package var canRenameAccounts: Bool { !isFixed }
     package var isSigningIn: Bool { accountAction.map { $0.kind != .removal } ?? false }

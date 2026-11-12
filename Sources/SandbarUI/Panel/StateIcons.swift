@@ -104,6 +104,26 @@ package enum Icon: String, CaseIterable {
             return (icon, Image(nsImage: template))
         })
 
+    package var spoken: String {
+        switch self {
+        case .open: "Open"
+        case .draft: "Draft"
+        case .merging: "Merging"
+        case .approved: "Approved"
+        case .changesRequested: "Changes requested"
+        case .checkPassed: "Checks passed"
+        case .checkRunning: "Checks running"
+        case .checkFailed: "Checks failed"
+        case .stack: "Stack"
+        case .fewer: "Show fewer"
+        case .refresh: "Refresh"
+        case .gear: "Menu"
+        case .gitHub: "GitHub"
+        case .claude: "Claude"
+        case .codex: "Codex"
+        }
+    }
+
     package var tint: Color? {
         switch self {
         case .open, .approved: .gitHubOpen
