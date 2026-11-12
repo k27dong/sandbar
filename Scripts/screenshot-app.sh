@@ -14,7 +14,7 @@ click() {
         -e 'end timeout' >/dev/null
 }
 deadline=$(($(date +%s) + 30))
-until click 2 || click 1; do
+until click 1 || click 2; do
     if [ "$(date +%s)" -ge "$deadline" ]; then
         echo "System Events could not click Sandbar's menu bar item" >&2
         exit 1
