@@ -48,6 +48,9 @@ import os
     package var now: Date
     package var openStacks: Set<Stack.ID> = []
     package var closePanel: () -> Void = {}
+    package var openSettings: (SettingsWindow.Pane?) -> Void = { _ in }
+    package private(set) var launchesAtLogin: Bool
+    package private(set) var launchAtLoginNote: String?
     package var hasNetwork = true {
         didSet { if hasNetwork, !oldValue { refreshAtOnce() } }
     }
@@ -60,6 +63,7 @@ import os
     let keychain: Keychain.Item
     let download: ToolDownload
     let openAddress: (URL) -> Void
+    let loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void)
     var accountAction: (task: Task<Void, Never>, kind: AccountAction)?
     var claudeSignIn: Command.Running?
     var signInAddress: URL?
@@ -92,7 +96,8 @@ import os
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         keychain: Keychain.Item = Keychain.Item(named: "github"),
         toolDownload: (URL) -> ToolDownload = ToolDownload.init(folder:),
-        openAddress: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) }
+        openAddress: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) },
+        loginItem: (isOn: () -> Bool, set: (Bool) throws -> Void) = ({ LoginItem.isOn }, LoginItem.set)
     ) {
         self.snapshot = snapshot
         accounts = snapshot.accounts.map(\.account)
@@ -108,6 +113,8 @@ import os
         self.keychain = keychain
         download = toolDownload(files.tools)
         self.openAddress = openAddress
+        self.loginItem = loginItem
+        launchesAtLogin = loginItem.isOn()
     }
 
     /// Shows a saved snapshot as it was when it was last asked for, and never refreshes it.
@@ -125,6 +132,26 @@ import os
         return PullRequestList(
             mine: lists.mine.filter { chosen.contains($0.repository) },
             reviewRequests: lists.reviewRequests.filter { chosen.contains($0.repository) })
+    }
+
+    package var choosesRepositories: Bool {
+        get { preferences.chosenRepositories != nil }
+        set { preferences.chosenRepositories = newValue ? preferences.chosenRepositories ?? listedRepositories : nil }
+    }
+
+    /// Every repository with a pull request in either list now, and every chosen one, by name.
+    package var repositoryChoices: [String] {
+        Set(listedRepositories + (preferences.chosenRepositories ?? [])).sorted()
+    }
+
+    package func choose(_ repository: String, _ isChosen: Bool) {
+        let others = (preferences.chosenRepositories ?? []).filter { $0 != repository }
+        preferences.chosenRepositories = (isChosen ? others + [repository] : others).sorted()
+    }
+
+    private var listedRepositories: [String] {
+        let lists = snapshot.pullRequests.value
+        return Set((lists.mine + lists.reviewRequests).map(\.repository)).sorted()
     }
 
     package var isOffline: Bool {
@@ -264,6 +291,17 @@ import os
         if showsSignIn { findSignIns() }
         if let asked = snapshot.lastAsked, now.timeIntervalSince(asked) < 15 { return }
         refreshInBackground(.all)
+    }
+
+    package func launchAtLogin(_ on: Bool) {
+        do {
+            try loginItem.set(on)
+            launchAtLoginNote = nil
+        } catch {
+            launchAtLoginNote = "macOS did not change it: \(error.localizedDescription)"
+            Self.log.error("Launch at login stayed as it was: \(String(describing: error), privacy: .public)")
+        }
+        launchesAtLogin = loginItem.isOn()
     }
 
     package func open(_ pullRequest: PullRequest) {

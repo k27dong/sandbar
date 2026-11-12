@@ -46,6 +46,8 @@ jobs:
       - run: Scripts/build-app.sh debug
       - run: Scripts/screenshot-app.sh limit "$RUNNER_TEMP/pictures/app-limit.png"
       - run: Scripts/screenshot-app.sh - "$RUNNER_TEMP/pictures/app-first.png"
+      - run: Scripts/screenshot-app.sh limit "$RUNNER_TEMP/pictures/app-settings.png" settings
+      - run: Scripts/screenshot-app.sh limit "$RUNNER_TEMP/pictures/app-shortcut.png" shortcut
       - uses: actions/upload-artifact@v7
         if: always()
         with:

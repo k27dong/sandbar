@@ -234,7 +234,8 @@ extension AppModel {
     }
 
     package func rename(_ account: Account, to name: String) {
-        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
         accounts[index].name = name
         accountsChanged()
     }
@@ -254,7 +255,9 @@ extension AppModel {
     }
 
     package func finishSetup() {
+        guard !preferences.isSetUp else { return }
         preferences.isSetUp = true
+        launchAtLogin(true)
     }
 
     private func changingAccounts(_ kind: AccountAction, _ work: @escaping () async -> Void) async {

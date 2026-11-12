@@ -17,6 +17,9 @@ package struct UsageRows: View {
                         isDimmed: reading.trouble != nil
                     )
                     .help(reading.trouble == nil ? "" : reading.detail ?? "")
+                    .onTapGesture {
+                        if reading.trouble != nil { model.openSettings(.accounts) }
+                    }
                 }
             }
         }

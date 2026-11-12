@@ -61,6 +61,8 @@ package struct PanelView: View {
                     }
                     Spacer()
                     Menu {
+                        Button("Settings…") { model.openSettings(nil) }
+                            .keyboardShortcut(",")
                         Button("Quit Sandbar") { NSApplication.shared.terminate(nil) }
                             .keyboardShortcut("q")
                     } label: {

@@ -18,6 +18,8 @@ import SandbarCore
         static let isSetUp = "isSetUp"
         static let gitHubLogin = "gitHubLogin"
         static let usesGhSignIn = "usesGhSignIn"
+        static let shortcut = "shortcut"
+        static let settingsPane = "settingsPane"
     }
 
     private static let notificationKeys: [(key: String, isOn: WritableKeyPath<NotificationSettings, Bool>)] = [
@@ -45,6 +47,18 @@ import SandbarCore
     package var isSetUp: Bool { didSet { defaults.set(isSetUp, forKey: Key.isSetUp) } }
     package var gitHubLogin: String? { didSet { defaults.set(gitHubLogin, forKey: Key.gitHubLogin) } }
     package var usesGhSignIn: Bool { didSet { defaults.set(usesGhSignIn, forKey: Key.usesGhSignIn) } }
+    package var shortcut: Shortcut.Keys? {
+        didSet {
+            do {
+                defaults.set(try JSONEncoder().encode(shortcut), forKey: Key.shortcut)
+            } catch {
+                AppModel.log.error("The shortcut was not saved: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+    package var settingsPane: SettingsWindow.Pane {
+        didSet { defaults.set(settingsPane.rawValue, forKey: Key.settingsPane) }
+    }
 
     private let defaults: UserDefaults
 
@@ -65,5 +79,15 @@ import SandbarCore
         isSetUp = defaults.bool(forKey: Key.isSetUp)
         gitHubLogin = defaults.string(forKey: Key.gitHubLogin)
         usesGhSignIn = defaults.bool(forKey: Key.usesGhSignIn)
+        settingsPane =
+            defaults.string(forKey: Key.settingsPane).flatMap(SettingsWindow.Pane.init(rawValue:)) ?? .general
+        do {
+            shortcut =
+                try defaults.data(forKey: Key.shortcut).map { try JSONDecoder().decode(Shortcut.Keys?.self, from: $0) }
+                ?? .standard
+        } catch {
+            shortcut = .standard
+            AppModel.log.error("The saved shortcut could not be read: \(String(describing: error), privacy: .public)")
+        }
     }
 }

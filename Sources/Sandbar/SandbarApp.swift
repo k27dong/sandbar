@@ -18,6 +18,7 @@ enum SandbarApp {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let panel = PanelWindow()
     private var model: AppModel?
+    private var shortcut: Shortcut?
     private lazy var statusItem = StatusItem { [unowned self] in self.togglePanel() }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -56,9 +57,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func use(_ model: AppModel) {
+        let settings = SettingsWindow(model: model)
         model.closePanel = { [unowned self] in self.panel.close() }
+        model.openSettings = { [unowned self] pane in
+            self.panel.close()
+            settings.show(pane)
+        }
+        panel.openSettings = { model.openSettings(nil) }
         self.model = model
         showMenuBarItem()
+        registerShortcut()
+    }
+
+    private func registerShortcut() {
+        guard let model else { return }
+        withObservationTracking {
+            shortcut = nil  // the old one lets go of its keys first, so the same keys can be taken again
+            shortcut = model.preferences.shortcut.map { keys in Shortcut(keys) { [unowned self] in self.togglePanel() }
+            }
+        } onChange: {
+            Task { @MainActor in self.registerShortcut() }
+        }
     }
 
     private func showMenuBarItem() {

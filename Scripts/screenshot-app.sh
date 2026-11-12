@@ -2,6 +2,7 @@
 set -eu
 stage="$1"
 output="$2"
+then="${3:-}"  # settings: press ⌘, once the panel is open; shortcut: press ⌥⌘P instead of clicking
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "$stage" = - ]; then set --; else set -- --show "$root/Tests/Stages/$stage.json"; fi
@@ -11,14 +12,19 @@ cp -R "$root/build/Sandbar.app" "$folder"
 program=$!
 trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
 
-click() {
+item() {
     osascript -e 'with timeout of 10 seconds' \
         -e "tell application \"System Events\" to tell menu bar item 1 of menu bar $1 of (first process whose unix id is $program)" \
         -e 'if item 1 of (get position) < 0 then error "not placed in the menu bar yet: a click now opens the panel off screen"' \
-        -e 'click' -e 'end tell' -e 'end timeout' >/dev/null
+        -e "$2" -e 'end tell' -e 'end timeout' >/dev/null
 }
+press() {
+    osascript -e "tell application \"System Events\" to keystroke \"$1\" using {$2}"
+}
+action=click
+if [ "$then" = shortcut ]; then action='get position'; fi
 deadline=$(($(date +%s) + 30))
-until click 1 || click 2; do
+until item 1 "$action" || item 2 "$action"; do
     if [ "$(date +%s)" -ge "$deadline" ]; then
         echo "System Events could not click Sandbar's menu bar item" >&2
         exit 1
@@ -26,6 +32,10 @@ until click 1 || click 2; do
     sleep 1
 done
 
+case "$then" in
+    settings) sleep 1 && press , "command down" ;;
+    shortcut) press p "option down, command down" ;;
+esac
 sleep 1
 mkdir -p "$(dirname "$output")"
 screencapture -x "$output"

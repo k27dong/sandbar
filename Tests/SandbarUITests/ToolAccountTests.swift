@@ -589,6 +589,20 @@ import Testing
         }
     }
 
+    @Test func aBlankNameIsNotSavedAndANameIsTrimmed() async throws {
+        try await withHome { home in
+            let work = Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil)
+            try Account.save([work], to: home.files.accounts)
+            let model = home.model()
+            model.start()
+            model.rename(work, to: "  ")
+            #expect(model.accounts.map(\.name) == ["Work"])
+            #expect(try Account.load(from: home.files.accounts).map(\.name) == ["Work"])
+            model.rename(work, to: " Main ")
+            #expect(try Account.load(from: home.files.accounts).map(\.name) == ["Main"])
+        }
+    }
+
     @Test func aSaveThatFailsSaysSoUntilASaveWorks() async throws {
         try await withHome { home in
             let model = home.model(findTool: Fake.found(["claude": try Fake.claude(ownSignIn: true)]))
