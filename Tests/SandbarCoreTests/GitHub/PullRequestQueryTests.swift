@@ -43,7 +43,13 @@ struct PullRequestQueryTests {
          "message": "Resource protected by organization SAML enforcement. You must grant your OAuth token access \
         to this organization."}
         """
+    static let ipAllowList = """
+        {"type": "FORBIDDEN", "path": ["mine", "nodes", 2], "locations": [{"line": 2, "column": 3}],
+         "message": "Although you appear to have the correct authorization credentials, the `acme` organization has \
+        an IP allow list enabled, and your IP address is not permitted to access this resource."}
+        """
     static let singleSignOn = "an organization that requires single sign-on"
+    static let restricting = "an organization that restricts access"
     static let summariesNeedingDetails = ["FAILURE", "PENDING"]
     static let decisionCases: [(decision: String?, verdict: PullRequest.Verdict?)] = [
         ("APPROVED", .approved), ("CHANGES_REQUESTED", .changesRequested), ("REVIEW_REQUIRED", nil), (nil, nil),
@@ -196,12 +202,20 @@ struct PullRequestQueryTests {
         #expect(lists.hiddenOrganizations == [Self.singleSignOn])
     }
 
-    @Test func bothKindsOfForbiddenAreHidden() async throws {
+    @Test func unknownForbiddenIsHiddenOnceAndKeepsTheLists() async throws {
         let answer = GitHubAnswer.list(
-            mine: ["null", "null", GitHubAnswer.node(3)], errors: "[\(Self.oauthRestriction), \(Self.samlEnforcement)]")
+            mine: [GitHubAnswer.node(1), "null", "null"], errors: "[\(Self.ipAllowList), \(Self.ipAllowList)]")
         let lists = try await read(answer).lists
-        #expect(lists.hiddenOrganizations == ["acme", Self.singleSignOn])
-        #expect(lists.mine.map(\.number) == [3])
+        #expect(lists.mine.map(\.number) == [1])
+        #expect(lists.hiddenOrganizations == [Self.restricting])
+    }
+
+    @Test func everyKindOfForbiddenIsHidden() async throws {
+        let errors = "[\(Self.oauthRestriction), \(Self.samlEnforcement), \(Self.ipAllowList)]"
+        let answer = GitHubAnswer.list(mine: ["null", "null", "null", GitHubAnswer.node(4)], errors: errors)
+        let lists = try await read(answer).lists
+        #expect(lists.hiddenOrganizations == ["acme", Self.singleSignOn, Self.restricting])
+        #expect(lists.mine.map(\.number) == [4])
     }
 
     @Test func anotherErrorBesideDataIsNotUnderstood() async throws {

@@ -20,6 +20,7 @@ enum PullRequestQuery {
     }
 
     private static let singleSignOnOrganization = "an organization that requires single sign-on"
+    private static let restrictingOrganization = "an organization that restricts access"
     private static let deletedAccount = "ghost"
 
     private static let fields = """
@@ -127,10 +128,10 @@ enum PullRequestQuery {
             let messages = problems.map(\.message).joined(separator: "\n")
             throw GitHubError.notUnderstood(messages.isEmpty ? excerpt(answer) : String(messages.prefix(2_000)))
         }
-        let hiddenOrganizations = problems.compactMap { problem in
+        let hiddenOrganizations = problems.map { problem in
             let restricted = #/the `(?<name>[^`]+)` organization has enabled OAuth App access restrictions/#
             if let match = problem.message.firstMatch(of: restricted) { return String(match.name) }
-            return problem.message.contains("SAML enforcement") ? singleSignOnOrganization : nil
+            return problem.message.contains("SAML enforcement") ? singleSignOnOrganization : restrictingOrganization
         }
         return (data, hiddenOrganizations)
     }
