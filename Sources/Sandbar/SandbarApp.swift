@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func togglePanel() {
+    private func togglePanel() {  // on its own: in the lazy item's closure Swift warns of an isolated conformance
         guard let model, let button = statusItem.button else { return }
         panel.toggle(under: button) { maxHeight in PanelView(maxHeight: maxHeight).environment(model) }
         statusItem.isHighlighted = panel.isOpen
