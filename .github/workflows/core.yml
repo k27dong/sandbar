@@ -5,6 +5,9 @@ on:
   push:
     branches: [master]
 
+permissions:
+  contents: read
+
 concurrency:
   group: core-${{ github.ref }}
   cancel-in-progress: true
@@ -16,4 +19,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: Scripts/check.sh
