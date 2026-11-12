@@ -139,6 +139,31 @@ struct AccountTests {
         #expect(try called(tool) == nil)
     }
 
+    @Test func withNoToolAnywhereTheProfileIsRemovedWithoutASignOut() async throws {
+        let profiles = try folder()
+        let profile = try Account.makeProfile(in: profiles)
+        let tool = try signOutRecorder()
+        try await Account(tool: .claude, name: "Work", plan: "Enterprise", profile: profile)
+            .forget(tool: nil, profiles: profiles)
+        #expect(try called(tool) == nil)
+        #expect(!FileManager.default.fileExists(atPath: profile.path))
+    }
+
+    @Test func withNoToolAProfileOutsideProfilesIsStillRefused() async throws {
+        let root = try folder()
+        let profiles = root.appending(path: "Profiles")
+        let outside = root.appending(path: "outside")
+        for kept in [profiles, outside] {
+            try FileManager.default.createDirectory(at: kept, withIntermediateDirectories: true)
+            try Data().write(to: kept.appending(path: "kept"))
+        }
+        await #expect(throws: Account.Misplaced.profile(outside)) {
+            try await Account(tool: .claude, name: "Work", plan: "Enterprise", profile: outside)
+                .forget(tool: nil, profiles: profiles)
+        }
+        #expect(FileManager.default.fileExists(atPath: outside.appending(path: "kept").path))
+    }
+
     @Test func aFailedSignOutKeepsTheProfile() async throws {
         let profiles = try folder()
         let profile = try Account.makeProfile(in: profiles)
