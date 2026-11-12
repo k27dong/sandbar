@@ -335,6 +335,7 @@ extension AppModel {
             Self.log.error("The accounts were not saved: \(String(describing: error), privacy: .public)")
         }
         findTools()
+        scheduleResets()
         owe(.limits)
     }
 }

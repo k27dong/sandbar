@@ -55,7 +55,7 @@ import os
         get { preferences.notificationsPaused }
         set {
             preferences.notificationsPaused = newValue
-            Task { await scheduleResets() }
+            scheduleResets()
         }
     }
     package var isRecordingShortcut = false
@@ -91,6 +91,7 @@ import os
     private var owed: Snapshot.Parts = []
     var pullRequestsReadOnce = false  // until the first good answer of this run, what is shown is old news
     private var accountsReadOnce: Set<Account.ID> = []
+    @ObservationIgnored private var handingOver: Task<Void, Never>?
     private var refreshesAsked = 0
     private var isReading = false
     private var copiesCheckedAt: Date?
@@ -293,9 +294,9 @@ import os
             saveSnapshot()
             if !preferences.notificationsPaused {
                 let fresh = Banner.now(for: changes, settings: preferences.notifications, at: now)
-                if !fresh.isEmpty { await banners.deliver(fresh) }
+                if !fresh.isEmpty { handOver { [banners] in await banners.deliver(fresh) } }
             }
-            await scheduleResets()
+            scheduleResets()
             for tool in fetchedTools {
                 let failed = snapshot.accounts.contains { $0.account.tool == tool && $0.limits.trouble == .failed }
                 if !failed {
@@ -318,10 +319,22 @@ import os
     /// True from the moment a refresh is asked for until it has ended, the wait for a tool lookup included.
     package var isRefreshing: Bool { refreshesAsked > 0 }
 
-    private func scheduleResets() async {
-        await banners.schedule(
+    func scheduleResets() {
+        var current = snapshot
+        current.accounts.removeAll { entry in !accounts.contains { $0.id == entry.id } }  // still in the snapshot
+        let resets =
             preferences.notificationsPaused
-                ? [] : Banner.resets(in: snapshot, settings: preferences.notifications, now: now))
+            ? [] : Banner.resets(in: current, settings: preferences.notifications, now: now)
+        handOver { [banners] in await banners.schedule(resets) }
+    }
+
+    /// Runs after everything handed over before it, and nobody waits for it: a slow macOS never holds up a refresh.
+    private func handOver(_ work: @escaping @MainActor () async -> Void) {
+        let earlier = handingOver
+        handingOver = Task {
+            await earlier?.value
+            await work()
+        }
     }
 
     private func refreshInBackground(_ parts: Snapshot.Parts) {

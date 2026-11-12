@@ -9,6 +9,10 @@ import Testing
     var scheduled: [[Banner]] = []
     var permissionAsks = 0
 
+    func handedOver(by refreshes: Int) async throws {
+        try await eventually("macOS is handed what \(refreshes) refreshes made") { scheduled.count >= refreshes }
+    }
+
     var delivery: BannerDelivery {
         BannerDelivery(
             deliver: { [self] in delivered += $0 }, schedule: { [self] in scheduled.append($0) },
@@ -44,7 +48,7 @@ import Testing
             model.start()
             try await eventually("the first refresh ends") { await github.requests == 2 && !model.isRefreshing }
             #expect(model.list.mine.first?.lead.verdict == .approved)
-            #expect(banners.scheduled.count == 1)
+            try await banners.handedOver(by: 1)
             #expect(banners.delivered.isEmpty)
         }
     }
@@ -56,10 +60,12 @@ import Testing
             let banners = HandedBanners()
             let model = home.model(send: github.send, banners: banners.delivery)
             try await ends("the first refresh ends") { await model.refresh(.all) }
+            try await banners.handedOver(by: 1)
             #expect(banners.delivered.isEmpty)
 
             await github.answerPullRequestsWith(Self.approvedByMchen)
             try await ends("the second refresh ends") { await model.refresh(.all) }
+            try await banners.handedOver(by: 2)
             #expect(banners.delivered.map(\.title) == ["Approved by mchen"])
             #expect(banners.delivered.map(\.body) == ["Read saved carts through one cart reader"])
             #expect(
@@ -79,6 +85,7 @@ import Testing
             try await ends("the first refresh ends") { await model.refresh(.all) }
             await github.answerPullRequestsWith(Self.approvedByMchen)
             try await ends("the second refresh ends") { await model.refresh(.all) }
+            try await banners.handedOver(by: 2)
             #expect(model.list.mine.first?.lead.verdict == .approved)
             #expect(banners.delivered.isEmpty)
             #expect(banners.scheduled == [[], []])
@@ -90,6 +97,7 @@ import Testing
             let banners = HandedBanners()
             let model = home.model(snapshot: stage("day"), send: GitHubStub().send, banners: banners.delivery)
             try await ends("the refresh ends") { await model.refresh(.pullRequests) }
+            try await banners.handedOver(by: 1)
             try #require(banners.scheduled == [Self.resets(at: AppModelTests.now)])
 
             model.notificationsPaused = true
@@ -122,6 +130,7 @@ import Testing
                 await github.requests == 3 && !model.isRefreshing
             }
             #expect(model.list.mine.first?.lead.verdict == .approved)
+            try await banners.handedOver(by: 3)
             #expect(banners.delivered.isEmpty)
         }
     }
@@ -145,6 +154,7 @@ import Testing
             try await eventually("the refresh after the switch ends") {
                 await github.requests == 3 && !model.isRefreshing
             }
+            try await banners.handedOver(by: 3)
             #expect(model.list.mine.first?.lead.verdict == .approved)
             #expect(banners.delivered.isEmpty)
         }
@@ -155,11 +165,13 @@ import Testing
             let banners = HandedBanners()
             let model = home.model(snapshot: stage("day"), send: GitHubStub().send, banners: banners.delivery)
             try await ends("the first refresh ends") { await model.refresh(.all) }
+            try await banners.handedOver(by: 1)
             #expect(banners.scheduled == [Self.resets(at: AppModelTests.now)])
             #expect(banners.scheduled.last?.count == 4)
 
             model.now = AppModelTests.now + 4 * 3600
             try await ends("the second refresh ends") { await model.refresh(.pullRequests) }
+            try await banners.handedOver(by: 2)
             #expect(banners.scheduled.count == 2)
             #expect(banners.scheduled.last == Self.resets(at: AppModelTests.now + 4 * 3600))
             #expect(banners.scheduled.last?.count == 3, "the five-hour limit has reset by then")
@@ -221,6 +233,7 @@ import Testing
             try #require(model.snapshot.accounts.first?.limits.trouble == .failed)
             try claude.set("own", "90")
             try await ends("the first good read ends") { await model.refresh(.limits) }
+            try await banners.handedOver(by: 2)
             try #require(model.snapshot.accounts.first?.limits.value.first?.used == 0.9)
             #expect(banners.delivered.isEmpty)
 
@@ -228,6 +241,7 @@ import Testing
             try await ends("a read under the line ends") { await model.refresh(.limits) }
             try claude.set("own", "85")
             try await ends("a read over the line ends") { await model.refresh(.limits) }
+            try await banners.handedOver(by: 4)
             #expect(
                 banners.delivered.map(\.title) == ["Limit reset", "85% used"], "a drop with no reset time is a reset")
             #expect(banners.delivered.map(\.body) == ["Work · Week", "Work · Week"])
@@ -251,6 +265,7 @@ import Testing
 
             try claude.set("personal", "90")
             try await ends("the second read ends") { await model.refresh(.limits) }
+            try await banners.handedOver(by: 2)
             #expect(banners.delivered.map(\.title) == ["90% used"])
             #expect(banners.delivered.map(\.body) == ["Personal · Week"])
         }
@@ -276,6 +291,7 @@ import Testing
                 model.snapshot.accounts.count == 2 && !model.isRefreshing
             }
             #expect(model.snapshot.accounts.map { $0.limits.value.first?.used } == [0.9, 0.9])
+            try await banners.handedOver(by: 3)
             #expect(banners.delivered.map(\.title) == ["90% used"])
             #expect(banners.delivered.map(\.body) == ["Work · Week"])
         }
@@ -284,6 +300,39 @@ import Testing
     private func settled(_ model: AppModel) async throws {
         for _ in 0..<3 { await Task.yield() }
         try await eventually("the refresh ends") { !model.isRefreshing }
+    }
+
+    @Test func aRefreshDoesNotWaitForMacOSToTakeTheBanners() async throws {
+        try await withHome { home in
+            let github = GitHubStub()
+            let macOS = Gate()
+            let delivery = BannerDelivery(
+                deliver: { _ in await macOS.wait() }, schedule: { _ in await macOS.wait() }, askPermission: {})
+            let model = home.model(send: github.send, banners: delivery)
+            try await ends("the first refresh ends") { await model.refresh(.all) }
+            try await ends("the next refresh ends") { await model.refresh(.all) }
+            #expect(await github.requests == 2)
+            await macOS.open()
+        }
+    }
+
+    @Test func removingAnAccountTakesItsResetsBackWithoutARefresh() async throws {
+        try await withHome { home in
+            let banners = HandedBanners()
+            let model = home.model(snapshot: stage("day"), banners: banners.delivery)
+            model.hasNetwork = false
+            let codex = try #require(model.accounts.first { $0.name == "Codex" })
+
+            try await ends("the removal ends") { await model.remove(codex) }
+            try #require(!model.accounts.contains(codex))
+            try await eventually("the resets are handed over again") { !banners.scheduled.isEmpty }
+            var left = stage("day")
+            left.accounts.removeAll { $0.id == codex.id }
+            #expect(
+                banners.scheduled.last
+                    == Banner.resets(in: left, settings: NotificationSettings(), now: AppModelTests.now))
+            #expect(banners.scheduled.last?.count == 2)
+        }
     }
 
     @Test func finishingSetupAsksForPermissionOnce() async throws {
