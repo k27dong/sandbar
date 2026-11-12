@@ -54,7 +54,7 @@ struct GitHubSignInTests {
     }
 
     @Test func slowDownAddsFiveSeconds() async throws {
-        let exchange = GitHubExchange(Self.deviceCode, #"{"error": "slow_down", "interval": 10}"#, Self.token)
+        let exchange = GitHubExchange(Self.deviceCode, #"{"error": "slow_down"}"#, Self.token)
         let signIn = signIn(exchange)
         _ = try await signIn.token(for: try await signIn.start())
         #expect(await sleeps.durations == [.seconds(10)])
@@ -65,6 +65,23 @@ struct GitHubSignInTests {
         let signIn = signIn(exchange)
         let code = try await signIn.start()
         await #expect(throws: failure) { try await signIn.token(for: code) }
+    }
+
+    @Test func unreadableCodeAnswerIsNotQuoted() async throws {
+        let answer = #"{"device_code": "3584d83530557fdd1f46af8289938c8ef79f9dc5", "interval": 5}"#
+        let error = await #expect(throws: GitHubError.self) { try await signIn(GitHubExchange(answer)).start() }
+        guard case .notUnderstood(let text) = error else {
+            Issue.record("expected notUnderstood, got \(String(describing: error))")
+            return
+        }
+        #expect(!text.contains("3584d835"))
+    }
+
+    @Test func failedTokenRequestIsNotQuoted() async throws {
+        let exchange = GitHubExchange([(200, Self.deviceCode), (400, #"{"access_token": "gho_madeup"}"#)])
+        let signIn = signIn(exchange)
+        let code = try await signIn.start()
+        await #expect(throws: GitHubError.rejected(status: 400, body: "")) { try await signIn.token(for: code) }
     }
 
     @Test func ghTokenIsTrimmed() async throws {

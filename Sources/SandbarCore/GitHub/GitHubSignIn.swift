@@ -46,7 +46,7 @@ package struct GitHubSignIn: Sendable {
         do {
             code = try decoder.decode(Answer.self, from: answer)
         } catch is DecodingError {
-            throw GitHubError.notUnderstood(PullRequestQuery.excerpt(answer))
+            throw GitHubError.notUnderstood("unreadable device code answer")  // not quoted: it holds the code
         }
         return Code(
             userCode: code.userCode, address: code.verificationUri, deviceCode: code.deviceCode,
@@ -101,6 +101,10 @@ package struct GitHubSignIn: Sendable {
         request.httpBody = Data((components.percentEncodedQuery ?? "").utf8)
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        return try await GitHubClient.answer(to: request, send: send)
+        do {
+            return try await GitHubClient.answer(to: request, send: send)
+        } catch GitHubError.rejected(let status, _) {
+            throw GitHubError.rejected(status: status, body: "")  // not quoted: it may hold a code or a token
+        }
     }
 }

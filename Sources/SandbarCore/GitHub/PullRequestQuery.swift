@@ -10,18 +10,29 @@ enum PullRequestQuery {
             case .reviewRequests: "is:pr is:open review-requested:@me archived:false"
             }
         }
+
+        var list: WritableKeyPath<PullRequestLists, [PullRequest]> {
+            switch self {
+            case .mine: \.mine
+            case .reviewRequests: \.reviewRequests
+            }
+        }
+    }
+
+    struct Summary {
+        var id: String
+        var state: String
     }
 
     struct ListPage {
         var found: [Search: [PullRequest]] = [:]
-        var cursors: [Search: String] = [:]  // only for a search that has another page
-        var needDetails: [String] = []
+        var cursors: [Search: String] = [:]
+        var needDetails: [Summary] = []
         var hiddenOrganizations: [String]
     }
 
-    private static let singleSignOnOrganization = "an organization that requires single sign-on"
-    private static let restrictingOrganization = "an organization that restricts access"
     private static let deletedAccount = "ghost"
+    private static let checksPerPullRequest = 100
 
     private static let fields = """
         id number title url isDraft createdAt updatedAt author { login avatarUrl } repository { nameWithOwner }
@@ -50,18 +61,17 @@ enum PullRequestQuery {
             variables["\(name)After"] = after
         }
         let query = "query(\(declarations.joined(separator: ", "))) {\n\(searches.joined(separator: "\n"))\n}"
-        return try body(query, variables: variables)
+        return try GitHubClient.body(query, variables: variables)
     }
 
-    static func readList(_ answer: Data) throws -> ListPage {
-        let (content, hiddenOrganizations) = try content(of: answer)
+    static func readList(_ answer: Data, asked: Set<Search>) throws -> ListPage {
+        let (content, hiddenOrganizations) = try GitHubClient.content(of: answer)
         var page = ListPage(hiddenOrganizations: hiddenOrganizations)
-        for search in Search.allCases {
-            guard let result = content[search.rawValue] else { continue }
-            guard let result = result as? [String: Any], let nodes = result["nodes"] as? [Any] else {
-                throw GitHubError.notUnderstood(try received(result))
+        for search in Search.allCases where asked.contains(search) {
+            guard let result = content[search.rawValue] as? [String: Any], let nodes = result["nodes"] as? [Any] else {
+                throw GitHubError.notUnderstood(try received(content))
             }
-            let pageInfo = try decoded(PageInfo.self, from: result["pageInfo"] ?? NSNull())
+            let pageInfo = try GitHubClient.decoded(PageInfo.self, from: result["pageInfo"] ?? NSNull())
             if pageInfo.hasNextPage {
                 guard let cursor = pageInfo.endCursor else { throw GitHubError.notUnderstood(try received(result)) }
                 page.cursors[search] = cursor
@@ -69,9 +79,11 @@ enum PullRequestQuery {
             var found: [PullRequest] = []
             for node in nodes {
                 if node is NSNull || (node as? [String: Any])?.isEmpty == true { continue }  // hidden, or an issue
-                let (pullRequest, needsDetails) = try decoded(Node.self, from: node).pullRequest(node)
+                let (pullRequest, summary) = try GitHubClient.decoded(Node.self, from: node).pullRequest(node)
                 found.append(pullRequest)
-                if needsDetails { page.needDetails.append(pullRequest.id) }
+                if let summary, summary != "SUCCESS" {
+                    page.needDetails.append(Summary(id: pullRequest.id, state: summary))
+                }
             }
             page.found[search] = found
         }
@@ -83,7 +95,8 @@ enum PullRequestQuery {
         let nodes = ids.indices.map { index in
             """
             n\(index): node(id: $n\(index)) { ... on PullRequest {
-              commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
+              commits(last: 1) { nodes { commit { statusCheckRollup {
+                contexts(first: \(checksPerPullRequest)) { totalCount nodes {
                 __typename
                 ... on CheckRun { name status conclusion startedAt isRequired(pullRequestId: $n\(index)) }
                 ... on StatusContext { context state createdAt isRequired(pullRequestId: $n\(index)) }
@@ -92,77 +105,35 @@ enum PullRequestQuery {
             """
         }
         let variables = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ("n\($0.offset)", $0.element) })
-        return try body("query(\(declarations)) {\n\(nodes.joined(separator: "\n"))\n}", variables: variables)
+        return try GitHubClient.body(
+            "query(\(declarations)) {\n\(nodes.joined(separator: "\n"))\n}", variables: variables)
     }
 
-    static func readDetails(_ answer: Data, ids: [String]) throws -> [String: Checks] {
-        let content = try content(of: answer).data
+    static func readDetails(_ answer: Data, needing summaries: [Summary]) throws -> [String: Checks] {
+        let content = try GitHubClient.content(of: answer).data
         var checks: [String: Checks] = [:]
-        for (index, id) in ids.enumerated() {
+        for (index, summary) in summaries.enumerated() {
             let node = content["n\(index)"] ?? NSNull()
-            let rollup = try decoded(DetailNode.self, from: node).commits.nodes.first?.commit.statusCheckRollup
+            let rollup = try GitHubClient.decoded(DetailNode.self, from: node).commits.nodes.first?.commit
+                .statusCheckRollup
+            if let rollup, rollup.contexts.totalCount > checksPerPullRequest {  // unseen checks may fail or run
+                let failed = ["FAILURE", "ERROR"].contains(summary.state)
+                checks[summary.id] = Checks(verdict: failed ? .failed : .running)
+                continue
+            }
             var runs: [CheckRun] = []
             for context in rollup?.contexts.nodes ?? [] {
                 guard let run = context.run else { throw GitHubError.notUnderstood(try received(node)) }
                 runs.append(run)
             }
-            checks[id] = Checks(counting: runs)
+            checks[summary.id] = Checks(counting: runs)
         }
         return checks
     }
 
-    static func body(_ query: String, variables: [String: String]) throws -> Data {
-        try JSONEncoder().encode(Body(query: query, variables: variables))
-    }
-
-    static func content(of answer: Data) throws -> (data: [String: Any], hiddenOrganizations: [String]) {
-        let root: [String: Any]?
-        do {
-            root = try JSONSerialization.jsonObject(with: answer) as? [String: Any]
-        } catch {
-            throw GitHubError.notUnderstood(excerpt(answer))
-        }
-        guard let root else { throw GitHubError.notUnderstood(excerpt(answer)) }
-        let problems = try root["errors"].map { try decoded([Problem].self, from: $0) } ?? []
-        guard let data = root["data"] as? [String: Any], problems.allSatisfy({ $0.type == "FORBIDDEN" }) else {
-            let messages = problems.map(\.message).joined(separator: "\n")
-            throw GitHubError.notUnderstood(messages.isEmpty ? excerpt(answer) : String(messages.prefix(2_000)))
-        }
-        let hiddenOrganizations = problems.map { problem in
-            let restricted = #/the `(?<name>[^`]+)` organization has enabled OAuth App access restrictions/#
-            if let match = problem.message.firstMatch(of: restricted) { return String(match.name) }
-            return problem.message.contains("SAML enforcement") ? singleSignOnOrganization : restrictingOrganization
-        }
-        return (data, hiddenOrganizations)
-    }
-
-    private static func decoded<Value: Decodable>(_ type: Value.Type, from value: Any) throws -> Value {
-        let data = try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys])
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        do {
-            return try decoder.decode(type, from: data)
-        } catch is DecodingError {
-            throw GitHubError.notUnderstood(excerpt(data))
-        }
-    }
-
     private static func received(_ value: Any) throws -> String {
-        excerpt(try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys]))
-    }
-
-    static func excerpt(_ data: Data) -> String {
-        String(String(decoding: data, as: UTF8.self).prefix(2_000))
-    }
-
-    private struct Body: Encodable {
-        var query: String
-        var variables: [String: String]
-    }
-
-    private struct Problem: Decodable {
-        var type: String?
-        var message: String
+        GitHubClient.excerpt(
+            try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys]))
     }
 
     private struct PageInfo: Decodable {
@@ -214,7 +185,7 @@ enum PullRequestQuery {
         var stackEntry: StackEntry?
         var commits: Nodes<Commit>
 
-        func pullRequest(_ received: Any) throws -> (PullRequest, needsDetails: Bool) {
+        func pullRequest(_ received: Any) throws -> (PullRequest, summary: String?) {
             let decision: PullRequest.Verdict? =
                 switch reviewDecision {
                 case "APPROVED": .approved
@@ -259,14 +230,20 @@ enum PullRequestQuery {
                 checks: Checks(verdict: summary == "SUCCESS" ? .passed : nil),  // details replace any other summary
                 stack: place
             )
-            return (pullRequest, summary != nil && summary != "SUCCESS")
+            return (pullRequest, summary)
         }
     }
 
     private struct DetailNode: Decodable {
         struct Commit: Decodable {
             struct Content: Decodable {
-                struct Rollup: Decodable { var contexts: Nodes<Context> }
+                struct Rollup: Decodable {
+                    struct Contexts: Decodable {
+                        var totalCount: Int
+                        var nodes: [Context]
+                    }
+                    var contexts: Contexts
+                }
                 var statusCheckRollup: Rollup?
             }
             var commit: Content

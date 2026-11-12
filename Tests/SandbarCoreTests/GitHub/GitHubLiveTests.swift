@@ -9,7 +9,20 @@ struct GitHubLiveTests {
 
     @Test(.enabled(if: Live.isOn)) func readsTheSameOpenPullRequestsAsGh() async throws {
         let gh = Live.program("SANDBAR_LIVE_GH")
-        let lists = try await GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }).pullRequests()
+        let lists: PullRequestLists
+        do {
+            lists = try await GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }).pullRequests()
+        } catch let error as GitHubError {
+            let kind =
+                switch error {
+                case .signedOut: "signed out"
+                case .offline: "offline"
+                case .rejected(let status, _): "rejected with status \(status)"
+                case .notUnderstood: "not understood"
+                }
+            Issue.record("the real read failed: \(kind)")  // the error itself may quote real pull requests
+            return
+        }
         for pullRequest in lists.mine {
             print(
                 "place \(pullRequest.place) state \(pullRequest.state)",

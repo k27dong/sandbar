@@ -14,7 +14,7 @@ package enum GitHubError: Error, Equatable {
 package struct PullRequestLists: Codable, Equatable, Sendable {
     package var mine: [PullRequest]
     package var reviewRequests: [PullRequest]
-    package var hiddenOrganizations: [String]  // organizations GitHub says this sign-in may not see
+    package var hiddenOrganizations: [String]
 
     package init(mine: [PullRequest], reviewRequests: [PullRequest], hiddenOrganizations: [String]) {
         self.mine = mine
@@ -33,6 +33,9 @@ package struct GitHubClient: Sendable {
     }
 
     private static let address = URL(string: "https://api.github.com/graphql")!
+    private static let pagesPerSearch = 10  // GitHub's search gives at most 1,000 results
+    private static let singleSignOnOrganization = "an organization that requires single sign-on"
+    private static let restrictingOrganization = "an organization that restricts access"
 
     private let token: @Sendable () async throws -> String
     private let send: Send
@@ -44,22 +47,41 @@ package struct GitHubClient: Sendable {
 
     package func pullRequests() async throws -> PullRequestLists {
         var lists = PullRequestLists(mine: [], reviewRequests: [], hiddenOrganizations: [])
-        var needDetails: [String] = []
+        var read: [PullRequestQuery.Search: Set<String>] = [:]
+        var needDetails: [PullRequestQuery.Summary] = []
+        var sent: [PullRequestQuery.Search: [String?]] = [:]
         var pages: [PullRequestQuery.Search: String?] = [.mine: nil, .reviewRequests: nil]
         while !pages.isEmpty {
-            let page = try PullRequestQuery.readList(try await ask(try PullRequestQuery.listBody(pages)))
-            lists.mine += page.found[.mine] ?? []
-            lists.reviewRequests += page.found[.reviewRequests] ?? []
-            needDetails += page.needDetails
+            let answer = try await ask(try PullRequestQuery.listBody(pages))
+            let page = try PullRequestQuery.readList(answer, asked: Set(pages.keys))
+            for (search, cursor) in pages { sent[search, default: []].append(cursor) }
+            for (search, found) in page.found {
+                for pullRequest in found where read[search, default: []].insert(pullRequest.id).inserted {
+                    lists[keyPath: search.list].append(pullRequest)
+                }
+            }
+            for summary in page.needDetails where !needDetails.contains(where: { $0.id == summary.id }) {
+                needDetails.append(summary)
+            }
             for name in page.hiddenOrganizations where !lists.hiddenOrganizations.contains(name) {
                 lists.hiddenOrganizations.append(name)
+            }
+            for (search, cursor) in page.cursors {
+                let earlier = sent[search] ?? []
+                guard !earlier.contains(cursor) else {
+                    throw GitHubError.notUnderstood("the \(search.rawValue) search gave the cursor \(cursor) twice")
+                }
+                guard earlier.count < Self.pagesPerSearch else {
+                    throw GitHubError.notUnderstood(
+                        "the \(search.rawValue) search has more than \(Self.pagesPerSearch) pages")
+                }
             }
             pages = page.cursors.mapValues { $0 }
         }
         guard !needDetails.isEmpty else { return lists }
 
         let checks = try PullRequestQuery.readDetails(
-            try await ask(try PullRequestQuery.detailsBody(needDetails)), ids: needDetails)
+            try await ask(try PullRequestQuery.detailsBody(needDetails.map(\.id))), needing: needDetails)
         let withDetails = { (pullRequest: PullRequest) in
             var pullRequest = pullRequest
             pullRequest.checks = checks[pullRequest.id] ?? pullRequest.checks
@@ -71,10 +93,10 @@ package struct GitHubClient: Sendable {
     }
 
     package func viewer() async throws -> String {
-        let answer = try await ask(try PullRequestQuery.body("query { viewer { login } }", variables: [:]))
-        let viewer = try PullRequestQuery.content(of: answer).data["viewer"]
+        let answer = try await ask(try Self.body("query { viewer { login } }", variables: [:]))
+        let viewer = try Self.content(of: answer).data["viewer"]
         guard let login = (viewer as? [String: Any])?["login"] as? String else {
-            throw GitHubError.notUnderstood(PullRequestQuery.excerpt(answer))
+            throw GitHubError.notUnderstood(Self.excerpt(answer))
         }
         return login
     }
@@ -105,5 +127,55 @@ package struct GitHubClient: Sendable {
             throw GitHubError.rejected(
                 status: response.statusCode, body: String(String(decoding: data, as: UTF8.self).prefix(500)))
         }
+    }
+
+    static func body(_ query: String, variables: [String: String]) throws -> Data {
+        try JSONEncoder().encode(Body(query: query, variables: variables))
+    }
+
+    static func content(of answer: Data) throws -> (data: [String: Any], hiddenOrganizations: [String]) {
+        let root: [String: Any]?
+        do {
+            root = try JSONSerialization.jsonObject(with: answer) as? [String: Any]
+        } catch {
+            throw GitHubError.notUnderstood(excerpt(answer))
+        }
+        guard let root else { throw GitHubError.notUnderstood(excerpt(answer)) }
+        let problems = try root["errors"].map { try decoded([Problem].self, from: $0) } ?? []
+        guard let data = root["data"] as? [String: Any], problems.allSatisfy({ $0.type == "FORBIDDEN" }) else {
+            let messages = problems.map(\.message).joined(separator: "\n")
+            throw GitHubError.notUnderstood(messages.isEmpty ? excerpt(answer) : String(messages.prefix(2_000)))
+        }
+        let hiddenOrganizations = problems.map { problem in
+            let restricted = #/the `(?<name>[^`]+)` organization has enabled OAuth App access restrictions/#
+            if let match = problem.message.firstMatch(of: restricted) { return String(match.name) }
+            return problem.message.contains("SAML enforcement") ? singleSignOnOrganization : restrictingOrganization
+        }
+        return (data, hiddenOrganizations)
+    }
+
+    static func decoded<Value: Decodable>(_ type: Value.Type, from value: Any) throws -> Value {
+        let data = try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys])
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        do {
+            return try decoder.decode(type, from: data)
+        } catch is DecodingError {
+            throw GitHubError.notUnderstood(excerpt(data))
+        }
+    }
+
+    static func excerpt(_ data: Data) -> String {
+        String(String(decoding: data, as: UTF8.self).prefix(2_000))
+    }
+
+    private struct Body: Encodable {
+        var query: String
+        var variables: [String: String]
+    }
+
+    private struct Problem: Decodable {
+        var type: String?
+        var message: String
     }
 }

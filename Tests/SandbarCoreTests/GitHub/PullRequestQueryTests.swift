@@ -51,6 +51,10 @@ struct PullRequestQueryTests {
     static let singleSignOn = "an organization that requires single sign-on"
     static let restricting = "an organization that restricts access"
     static let summariesNeedingDetails = ["FAILURE", "PENDING"]
+    static let cutDetailsCases: [(summary: String, checks: Checks)] = [
+        ("FAILURE", Checks(verdict: .failed)), ("ERROR", Checks(verdict: .failed)),
+        ("PENDING", Checks(verdict: .running)),
+    ]
     static let decisionCases: [(decision: String?, verdict: PullRequest.Verdict?)] = [
         ("APPROVED", .approved), ("CHANGES_REQUESTED", .changesRequested), ("REVIEW_REQUIRED", nil), (nil, nil),
     ]
@@ -223,6 +227,16 @@ struct PullRequestQueryTests {
         await #expect(throws: GitHubError.notUnderstood("Could not resolve to a node with the global id of 'x'.")) {
             try await read(GitHubAnswer.list(mine: [GitHubAnswer.node(1)], errors: errors))
         }
+    }
+
+    @Test(arguments: cutDetailsCases) func moreThan100ChecksKeepTheSummary(summary: String, checks: Checks) async throws
+    {
+        let passing = (1...100).map { GitHubAnswer.checkRun("check-\($0)", conclusion: "SUCCESS") }
+        let lists = try await read(
+            GitHubAnswer.list(mine: [GitHubAnswer.node(1, rollup: summary)]),
+            GitHubAnswer.details(passing, totalCount: 101)
+        ).lists
+        #expect(lists.mine.map(\.checks) == [checks])
     }
 
     @Test(arguments: checkTable) func checkOutcome(check: String, verdict: Checks.Verdict) async throws {

@@ -113,6 +113,51 @@ struct GitHubClientTests {
         #expect(tokens == ["bearer T1", "bearer T2", "bearer T3"])
     }
 
+    @Test func aRepeatedCursorIsNotUnderstood() async throws {
+        let exchange = GitHubExchange(
+            GitHubAnswer.list(mine: [GitHubAnswer.node(1)], mineCursor: Self.cursor),
+            GitHubAnswer.list(mine: [GitHubAnswer.node(2)], mineCursor: Self.cursor, reviewRequests: nil)
+        )
+        await #expect(throws: GitHubError.self) {
+            try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
+        }
+        #expect(await exchange.requests.count == 2)
+    }
+
+    @Test func anEleventhPageIsNotUnderstood() async throws {
+        let pages = (1...10).map { page in
+            GitHubAnswer.list(
+                mine: [GitHubAnswer.node(page)], mineCursor: "cursor-\(page)", reviewRequests: page == 1 ? [] : nil)
+        }
+        let exchange = GitHubExchange(pages.map { (200, $0) })
+        await #expect(throws: GitHubError.self) {
+            try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
+        }
+        #expect(await exchange.requests.count == 10)
+    }
+
+    @Test func aPullRequestOnTwoPagesIsReadOnce() async throws {
+        let exchange = GitHubExchange(
+            GitHubAnswer.list(
+                mine: (1...100).map { GitHubAnswer.node($0, rollup: $0 == 100 ? "FAILURE" : "SUCCESS") },
+                mineCursor: Self.cursor),
+            GitHubAnswer.list(
+                mine: (100...150).map { GitHubAnswer.node($0, rollup: $0 == 100 ? "FAILURE" : "SUCCESS") },
+                reviewRequests: nil),
+            GitHubAnswer.details([GitHubAnswer.checkRun("test", conclusion: "FAILURE")])
+        )
+        let lists = try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
+        #expect(lists.mine.map(\.number) == Array(1...150))
+        #expect(try await exchange.sent().last?.variables == ["n0": "PR_100"])
+    }
+
+    @Test func aMissingSearchIsNotUnderstood() async throws {
+        let exchange = GitHubExchange(GitHubAnswer.list(mine: [GitHubAnswer.node(1)], reviewRequests: nil))
+        await #expect(throws: GitHubError.self) {
+            try await GitHubClient(token: { "T" }, send: exchange.send).pullRequests()
+        }
+    }
+
     @Test func viewerIsTheSignedInLogin() async throws {
         let exchange = GitHubExchange(#"{"data": {"viewer": {"login": "kd"}}}"#)
         #expect(try await GitHubClient(token: { "T" }, send: exchange.send).viewer() == "kd")

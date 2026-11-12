@@ -83,11 +83,11 @@ enum GitHubAnswer {
         return #"{"data": {"mine": \#(search(mine, cursor: mineCursor))\#(reviewSearch)}\#(errorsField)}"#
     }
 
-    static func details(_ checks: [String]...) -> String {
+    static func details(_ checks: [String]..., totalCount: Int? = nil) -> String {
         let nodes = checks.enumerated().map { index, contexts in
             """
-            "n\(index)": {"commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
-              \(contexts.joined(separator: ",\n"))]}}}}]}}
+            "n\(index)": {"commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {
+              "totalCount": \(totalCount ?? contexts.count), "nodes": [\(contexts.joined(separator: ",\n"))]}}}}]}}
             """
         }
         return #"{"data": {\#(nodes.joined(separator: ",\n"))}}"#
