@@ -770,6 +770,8 @@ import Testing
                 findTool: { await lookups.find($0) }, send: github.send, toolDownload: Home.noDownload)
             let accounts = model.accounts
             #expect(model.accountsAreLocked)
+            #expect(!model.canRenameAccounts)
+            #expect(home.model().canRenameAccounts)
 
             model.rename(accounts[0], to: "Renamed")
             try await ends("the remove does nothing") { await model.remove(accounts[1]) }

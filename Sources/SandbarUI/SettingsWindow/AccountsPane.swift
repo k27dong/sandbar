@@ -134,7 +134,9 @@ private struct NamedAccount: View {
                         .padding(.trailing, 4)
                 } else {
                     Text(account.name)
-                        .onTapGesture { draft = account.name }
+                        .onTapGesture {
+                            if model.canRenameAccounts { draft = account.name }
+                        }
                 }
                 if !account.plan.isEmpty { Text(" (\(account.plan))") }
             }

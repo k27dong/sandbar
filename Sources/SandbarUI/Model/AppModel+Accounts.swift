@@ -21,6 +21,7 @@ extension AppModel {
 
     package var isSetUp: Bool { isFixed || preferences.isSetUp }
     package var accountsAreLocked: Bool { isFixed || accountAction != nil }
+    package var canRenameAccounts: Bool { !isFixed }
     package var isSigningIn: Bool { accountAction.map { $0.kind != .removal } ?? false }
     package var canUseGh: Bool { ghHasSignIn && !gitHubRefusedGh }
 
@@ -259,7 +260,9 @@ extension AppModel {
 
     package func rename(_ account: Account, to name: String) {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isFixed, !name.isEmpty, let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        guard canRenameAccounts, !name.isEmpty, let index = accounts.firstIndex(where: { $0.id == account.id }) else {
+            return
+        }
         accounts[index].name = name
         accountsChanged()
     }

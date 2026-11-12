@@ -4,6 +4,7 @@ import SwiftUI
 
 struct GeneralPane: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.controlActiveState) private var windowState
     let version: String?
 
     var body: some View {
@@ -28,6 +29,9 @@ struct GeneralPane: View {
             }
         }
         .onAppear { model.checkLaunchAtLogin() }
+        .onChange(of: windowState) {
+            if windowState == .key { model.checkLaunchAtLogin() }  // back from System Settings › Login Items
+        }
     }
 }
 
