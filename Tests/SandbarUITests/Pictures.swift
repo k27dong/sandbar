@@ -4,9 +4,9 @@ import Testing
 
 @MainActor enum Pictures {
     static func draw(_ view: some View, named name: String, dark: Bool = false) throws -> URL {
-        _ = NSApplication.shared  // a test process has no application until asked, and a window needs one
+        let scale: CGFloat = 2
         let host = NSHostingView(
-            rootView: view.background(Color(nsColor: .windowBackgroundColor)).environment(\.displayScale, 2))
+            rootView: view.background(Color(nsColor: .windowBackgroundColor)).environment(\.displayScale, scale))
         let window = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
@@ -19,7 +19,7 @@ import Testing
         let size = host.bounds.size
         let bitmap = try #require(
             NSBitmapImageRep(
-                bitmapDataPlanes: nil, pixelsWide: Int(size.width * 2), pixelsHigh: Int(size.height * 2),
+                bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
                 bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                 colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
         bitmap.size = size

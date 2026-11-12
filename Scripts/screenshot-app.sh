@@ -6,7 +6,7 @@ folder="$(mktemp -d)"
 cp -R "$(dirname "$0")/../build/Sandbar.app" "$folder"
 "$folder/Sandbar.app/Contents/MacOS/Sandbar" &
 program=$!
-trap 'kill "$program"; rm -rf "$folder"' EXIT
+trap 'kill "$program"; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
 
 click() {
     osascript -e 'with timeout of 10 seconds' \
