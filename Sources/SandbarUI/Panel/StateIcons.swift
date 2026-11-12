@@ -87,11 +87,16 @@ package enum Icon: String, CaseIterable {
         <ellipse cx="7" cy="7" rx="5.6" ry="2.6" transform="rotate(120 7 7)"/></g></svg>
         """
 
-    package var image: Image {
-        let template = NSImage(data: Data(rawValue.utf8))!
-        template.isTemplate = true
-        return Image(nsImage: template)
-    }
+    package var image: Image { Self.images[self]! }
+
+    private static let images: [Icon: Image] = Dictionary(
+        uniqueKeysWithValues: allCases.map { icon in
+            let template =
+                NSImage(data: Data(icon.rawValue.utf8))
+                ?? NSImage(size: .zero)  // a bad SVG gets no size, which a test reports by name; a crash hides the rest
+            template.isTemplate = true
+            return (icon, Image(nsImage: template))
+        })
 
     package var tint: Color? {
         switch self {
