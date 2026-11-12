@@ -26,7 +26,7 @@ jobs:
   mac:
     if: github.event_name != 'pull_request' || github.event.label.name == 'mac'
     runs-on: xcode-27
-    timeout-minutes: 20
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,6 +35,7 @@ jobs:
       - run: swift test -j 3
         env:
           SANDBAR_PICTURES: ${{ runner.temp }}/pictures
+          SANDBAR_FETCH: ${{ contains(github.event.pull_request.labels.*.name, 'fetch') && '1' || '0' }}
       - run: |
           for scrollBars in Always WhenScrolling; do  # a program reads this setting once, when it starts
             defaults write -g AppleShowScrollBars -string "$scrollBars"
@@ -44,6 +45,7 @@ jobs:
           SANDBAR_PICTURES: ${{ runner.temp }}/pictures
       - run: Scripts/build-app.sh debug
       - run: Scripts/screenshot-app.sh limit "$RUNNER_TEMP/pictures/app-limit.png"
+      - run: Scripts/screenshot-app.sh - "$RUNNER_TEMP/pictures/app-first.png"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

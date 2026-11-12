@@ -13,8 +13,9 @@ trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; 
 
 click() {
     osascript -e 'with timeout of 10 seconds' \
-        -e "tell application \"System Events\" to click menu bar item 1 of menu bar $1 of (first process whose unix id is $program)" \
-        -e 'end timeout' >/dev/null
+        -e "tell application \"System Events\" to tell menu bar item 1 of menu bar $1 of (first process whose unix id is $program)" \
+        -e 'if item 1 of (get position) < 0 then error "not placed in the menu bar yet: a click now opens the panel off screen"' \
+        -e 'click' -e 'end tell' -e 'end timeout' >/dev/null
 }
 deadline=$(($(date +%s) + 30))
 until click 1 || click 2; do
