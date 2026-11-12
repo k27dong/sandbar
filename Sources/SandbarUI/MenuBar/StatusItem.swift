@@ -1,10 +1,11 @@
 import AppKit
+import SandbarCore
 import SwiftUI
 
 package final class StatusItem {
     package enum Ring: Equatable {
         case none
-        case used(Double)
+        case used(Double, UsageLimit.Level)
     }
 
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -25,11 +26,7 @@ package final class StatusItem {
 
     package func show(ring: Ring, count: Int?, dimmed: Bool) {
         let tone: NSColor? =
-            if case .used(let share) = ring, share >= 0.8 {
-                NSColor(share >= 1 ? Color.usageCritical : .usageWarning)
-            } else {
-                nil
-            }
+            if case .used(_, let level) = ring, level != .normal { NSColor(Color.usage(level)) } else { nil }
         let side: CGFloat = 18
         let number = count.map { "\($0)" }
         let numberStart = side + 4
@@ -52,7 +49,7 @@ package final class StatusItem {
                 track.setLineDash([2.3, 2.5], count: 2, phase: 0)
                 ink.withAlphaComponent(0.6).setStroke()
                 track.stroke()
-            case .used(let share):
+            case .used(let share, _):
                 ink.withAlphaComponent(0.28).setStroke()
                 track.stroke()
                 let arc = NSBezierPath()

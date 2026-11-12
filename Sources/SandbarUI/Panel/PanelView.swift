@@ -16,6 +16,10 @@ package struct PanelView: View {
         let tone = model.isOffline ? Color.warningText : .secondary
         let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy
         VStack(spacing: 0) {
+            if !model.snapshot.accounts.isEmpty {
+                UsageRows()
+                ThinLine()
+            }
             ScrollView {
                 PullRequestRows()
             }

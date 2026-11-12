@@ -1,4 +1,5 @@
 import AppKit
+import SandbarCore
 import SwiftUI
 
 package enum Icon: String, CaseIterable {
@@ -131,6 +132,14 @@ extension Color {
     package static let facePlaceholder = Color(light: 0x8E8E93, dark: 0x7C7C82)
     package static let claudeMark = Color(light: 0xD97757, dark: 0xE08A6C)
     package static let codexMark = Color(light: 0x1B1B1D, dark: 0xF2F2F2)
+
+    package static func usage(_ level: UsageLimit.Level) -> Color {
+        switch level {
+        case .normal: .accentColor
+        case .near: .usageWarning
+        case .full: .usageCritical
+        }
+    }
 
     private init(light: Int, dark: Int) {
         self.init(
