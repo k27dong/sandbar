@@ -20,12 +20,16 @@ package struct Snapshot: Codable, Equatable, Sendable {
         package var readAt: Date?
         package var askedAt: Date?
         package var trouble: Trouble?
+        package var detail: String?
 
-        package init(value: Value, readAt: Date? = nil, askedAt: Date? = nil, trouble: Trouble? = nil) {
+        package init(
+            value: Value, readAt: Date? = nil, askedAt: Date? = nil, trouble: Trouble? = nil, detail: String? = nil
+        ) {
             self.value = value
             self.readAt = readAt
             self.askedAt = askedAt
             self.trouble = trouble
+            self.detail = detail
         }
 
         fileprivate func asked(at now: Date, read: () async throws -> Value) async -> Reading {
@@ -35,14 +39,16 @@ package struct Snapshot: Codable, Equatable, Sendable {
                 reading.value = try await read()
                 reading.readAt = now
                 reading.trouble = nil
-            } catch GitHubError.signedOut, ToolError.signedOut {
-                reading.trouble = .signedOut
-            } catch GitHubError.offline {
-                reading.trouble = .offline
-            } catch ToolError.missing {
-                reading.trouble = .toolMissing
+                reading.detail = nil
             } catch {
-                reading.trouble = .failed
+                reading.trouble =
+                    switch error {
+                    case GitHubError.signedOut, ToolError.signedOut: .signedOut
+                    case GitHubError.offline: .offline
+                    case ToolError.missing: .toolMissing
+                    default: .failed
+                    }
+                reading.detail = String(String(describing: error).prefix(300))
             }
             return reading
         }

@@ -15,23 +15,28 @@ struct SnapshotTests {
     static let codexPersonal = Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil)
     static let claudeWeek = UsageLimit(window: .week, used: 0.41)
     static let codexFiveHours = UsageLimit(window: .fiveHours, used: 0.17)
+    static let codexWorkFiveHours = UsageLimit(window: .fiveHours, used: 0.23)
 
     static let quiet = PullRequestLists(mine: [.sample(1)], reviewRequests: [], hiddenOrganizations: [])
-    static let checksRunning = PullRequestLists(
+    static let reviewChecksRunning = PullRequestLists(
         mine: [.sample(1)], reviewRequests: [.sample(2, checks: Checks(verdict: .running))], hiddenOrganizations: [])
+    static let ownChecksRunning = PullRequestLists(
+        mine: [.sample(1, checks: Checks(verdict: .running))], reviewRequests: [.sample(2)], hiddenOrganizations: [])
     static let dueCases:
         [(
-            lists: PullRequestLists, pullRequestsAskedAt: Date?, trouble: Snapshot.Trouble?, limitsAskedAt: Date?,
+            lists: PullRequestLists, pullRequestsAskedAt: Date?, trouble: Snapshot.Trouble?, limitsAskedAt: [Date?],
             due: Snapshot.Parts
         )] = [
-            (quiet, nil, nil, nil, .all),
-            (quiet, Sample.now - 59, nil, Sample.now, []),
-            (quiet, Sample.now - 60, nil, Sample.now, .pullRequests),
-            (checksRunning, Sample.now - 19, nil, Sample.now, []),
-            (checksRunning, Sample.now - 20, nil, Sample.now, .pullRequests),
-            (quiet, Sample.now, nil, Sample.now - 299, []),
-            (quiet, Sample.now, nil, Sample.now - 300, .limits),
-            (quiet, Sample.now - 10, .failed, Sample.now, []),
+            (quiet, nil, nil, [nil], .all),
+            (quiet, Sample.now - 59, nil, [Sample.now], []),
+            (quiet, Sample.now - 60, nil, [Sample.now], .pullRequests),
+            (reviewChecksRunning, Sample.now - 19, nil, [Sample.now], []),
+            (reviewChecksRunning, Sample.now - 20, nil, [Sample.now], .pullRequests),
+            (ownChecksRunning, Sample.now - 20, nil, [Sample.now], .pullRequests),
+            (quiet, Sample.now, nil, [Sample.now - 299], []),
+            (quiet, Sample.now, nil, [Sample.now - 300], .limits),
+            (quiet, Sample.now, nil, [Sample.now, nil], .limits),
+            (quiet, Sample.now - 10, .failed, [Sample.now], []),
         ]
 
     func github(_ exchange: GitHubExchange) -> GitHubClient {
@@ -56,12 +61,13 @@ struct SnapshotTests {
             #"""
             while read -r line; do
               id=$(printf '%s\n' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+              case "$CODEX_HOME" in */codex-work) used=23 ;; *) used=17 ;; esac
               case "$line" in
                 *'"method":"initialize"'*) echo "{\"id\":$id,\"result\":{\"userAgent\":\"fake\"}}" ;;
                 *'"method":"account/read"'*)
                   echo "{\"id\":$id,\"result\":{\"account\":{\"type\":\"chatgpt\",\"planType\":\"plus\"}}}" ;;
                 *'"method":"account/rateLimits/read"'*)
-                  echo "{\"id\":$id,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":17,\"windowDurationMins\":300}}}}" ;;
+                  echo "{\"id\":$id,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":$used,\"windowDurationMins\":300}}}}" ;;
               esac
             done
             """#
@@ -78,8 +84,8 @@ struct SnapshotTests {
         #expect(snapshot.pullRequests.trouble == nil)
     }
 
-    @Test func aFailedReadKeepsTheLastListsAndTheirTime() async {
-        let client = github(GitHubExchange([(200, Self.lists), (502, "Bad gateway")]))
+    @Test func aFailedReadKeepsTheLastListsAndTheirTimeAndSaysWhy() async {
+        let client = github(GitHubExchange([(200, Self.lists), (502, "Bad gateway"), (200, Self.lists)]))
         let first = await Snapshot.empty.refreshed(
             .pullRequests, github: client, accounts: [], tools: [:], now: Sample.now)
         let second = await first.refreshed(
@@ -87,8 +93,14 @@ struct SnapshotTests {
         #expect(
             second.pullRequests
                 == Snapshot.Reading(
-                    value: first.pullRequests.value, readAt: Sample.now, askedAt: Sample.now + 60, trouble: .failed))
+                    value: first.pullRequests.value, readAt: Sample.now, askedAt: Sample.now + 60, trouble: .failed,
+                    detail: #"rejected(status: 502, body: "Bad gateway")"#))
         #expect(second.pullRequests.value.mine.count == 2)
+        let third = await second.refreshed(
+            .pullRequests, github: client, accounts: [], tools: [:], now: Sample.now + 120)
+        #expect(third.pullRequests.trouble == nil)
+        #expect(third.pullRequests.detail == nil)
+        #expect(third.pullRequests.readAt == Sample.now + 120)
     }
 
     @Test func noClientIsSignedOut() async {
@@ -96,7 +108,9 @@ struct SnapshotTests {
             .pullRequests, github: nil, accounts: [], tools: [:], now: Sample.now)
         #expect(
             snapshot.pullRequests
-                == Snapshot.Reading(value: Snapshot.empty.pullRequests.value, askedAt: Sample.now, trouble: .signedOut))
+                == Snapshot.Reading(
+                    value: Snapshot.empty.pullRequests.value, askedAt: Sample.now, trouble: .signedOut,
+                    detail: "signedOut"))
     }
 
     @Test func noNetworkIsOffline() async {
@@ -104,6 +118,7 @@ struct SnapshotTests {
         let snapshot = await Snapshot.empty.refreshed(
             .pullRequests, github: client, accounts: [], tools: [:], now: Sample.now)
         #expect(snapshot.pullRequests.trouble == .offline)
+        #expect(snapshot.pullRequests.detail == "offline")
         #expect(snapshot.pullRequests.askedAt == Sample.now)
     }
 
@@ -127,7 +142,9 @@ struct SnapshotTests {
             tools: [.claude: try claude(), .codex: try codex()], now: Sample.now)
         #expect(snapshot.accounts.map(\.account) == [Self.claudeWork, Self.codexWork, Self.codexPersonal])
         #expect(
-            snapshot.accounts.map(\.limits.value) == [[Self.claudeWeek], [Self.codexFiveHours], [Self.codexFiveHours]])
+            snapshot.accounts.map(\.limits.value) == [
+                [Self.claudeWeek], [Self.codexWorkFiveHours], [Self.codexFiveHours],
+            ])
         #expect(snapshot.accounts.map(\.limits.trouble) == [nil, nil, nil])
     }
 
@@ -150,7 +167,9 @@ struct SnapshotTests {
         let snapshot = await Snapshot.empty.refreshed(
             .limits, github: nil, accounts: [Self.claudeWork], tools: [.codex: try codex()], now: Sample.now)
         #expect(
-            snapshot.accounts.map(\.limits) == [Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .toolMissing)]
+            snapshot.accounts.map(\.limits) == [
+                Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .toolMissing, detail: "missing")
+            ]
         )
     }
 
@@ -163,7 +182,8 @@ struct SnapshotTests {
         #expect(
             second.accounts.map(\.limits) == [
                 Snapshot.Reading(
-                    value: [Self.claudeWeek], readAt: Sample.now, askedAt: Sample.now + 300, trouble: .signedOut)
+                    value: [Self.claudeWeek], readAt: Sample.now, askedAt: Sample.now + 300, trouble: .signedOut,
+                    detail: "signedOut")
             ])
     }
 
@@ -179,22 +199,23 @@ struct SnapshotTests {
         #expect(snapshot.pullRequests.value.mine.count == 2)
         #expect(
             snapshot.accounts.map(\.limits) == [
-                Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .failed),
+                Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .failed, detail: "timedOut"),
                 Snapshot.Reading(value: [Self.codexFiveHours], readAt: Sample.now, askedAt: Sample.now),
             ])
     }
 
     @Test(arguments: dueCases)
     func whatIsDue(
-        lists: PullRequestLists, pullRequestsAskedAt: Date?, trouble: Snapshot.Trouble?, limitsAskedAt: Date?,
+        lists: PullRequestLists, pullRequestsAskedAt: Date?, trouble: Snapshot.Trouble?, limitsAskedAt: [Date?],
         due: Snapshot.Parts
     ) {
         var snapshot = Snapshot.empty
         snapshot.pullRequests = Snapshot.Reading(value: lists, askedAt: pullRequestsAskedAt, trouble: trouble)
-        snapshot.accounts = [
+        snapshot.accounts = limitsAskedAt.map { askedAt in
             Snapshot.AccountLimits(
-                account: Self.claudeWork, limits: Snapshot.Reading(value: [], askedAt: limitsAskedAt))
-        ]
+                account: Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil),
+                limits: Snapshot.Reading(value: [], askedAt: askedAt))
+        }
         #expect(snapshot.due(at: Sample.now) == due)
     }
 

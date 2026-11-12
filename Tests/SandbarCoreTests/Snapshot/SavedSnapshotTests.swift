@@ -17,7 +17,7 @@ struct SavedSnapshotTests {
                 ],
                 reviewRequests: [.sample(7, repository: "acme/api", author: "mchen", reviews: [review])],
                 hiddenOrganizations: ["acme-labs"]),
-            readAt: Sample.now - 60, askedAt: Sample.now, trouble: .offline)
+            readAt: Sample.now - 60, askedAt: Sample.now, trouble: .offline, detail: "offline")
         snapshot.accounts = [
             Snapshot.AccountLimits(
                 account: Account(
@@ -32,7 +32,7 @@ struct SavedSnapshotTests {
                     readAt: Sample.now, askedAt: Sample.now)),
             Snapshot.AccountLimits(
                 account: Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil),
-                limits: Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .signedOut)),
+                limits: Snapshot.Reading(value: [], askedAt: Sample.now, trouble: .signedOut, detail: "signedOut")),
         ]
         return snapshot
     }()
@@ -49,6 +49,7 @@ struct SavedSnapshotTests {
         #expect(text.hasPrefix("{\n  \"snapshot\" : {"))
         #expect(text.hasSuffix("\"version\" : 1\n}"))
         #expect(text.contains(#""askedAt" : "2026-11-12T18:00:00Z""#))
+        #expect(text.contains(#""detail" : "offline""#))
     }
 
     @Test(arguments: unreadable) func whatCannotBeReadIsEmpty(contents: String?) throws {
