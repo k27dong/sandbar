@@ -23,18 +23,20 @@ package final class StatusItem {
         set { item.button?.highlight(newValue) }
     }
 
-    package func show(ring: Ring, count: Int, dimmed: Bool) {
+    package func show(ring: Ring, count: Int?, dimmed: Bool) {
         let tone: NSColor? =
             if case .used(let share) = ring, share >= 0.8 {
                 NSColor(share >= 1 ? Color.usageCritical : .usageWarning)
             } else {
                 nil
             }
-        let number = "\(count)"
         let side: CGFloat = 18
+        let number = count.map { "\($0)" }
         let numberStart = side + 4
-        let numberWidth = ceil(NSAttributedString(string: number, attributes: [.font: Self.numberFont]).size().width)
-        let size = NSSize(width: numberStart + numberWidth, height: side)
+        let numberWidth = number.map {
+            ceil(NSAttributedString(string: $0, attributes: [.font: Self.numberFont]).size().width)
+        }
+        let size = NSSize(width: numberWidth.map { numberStart + $0 } ?? side, height: side)
         let picture = NSImage(size: size, flipped: false) { @Sendable _ in
             let ink = NSColor.textColor
             let center = NSPoint(x: side / 2, y: side / 2)
@@ -60,13 +62,15 @@ package final class StatusItem {
                 (tone ?? ink).setStroke()
                 arc.stroke()
             }
-            let font = Self.numberFont
-            NSAttributedString(
-                string: number,
-                attributes: [.font: font, .foregroundColor: ink.withAlphaComponent(dimmed ? 0.55 : 1)]
-            ).draw(
-                with: NSRect(x: numberStart, y: center.y - font.capHeight / 2, width: numberWidth, height: 0),
-                options: [], context: nil)
+            if let number, let numberWidth {
+                let font = Self.numberFont
+                NSAttributedString(
+                    string: number,
+                    attributes: [.font: font, .foregroundColor: ink.withAlphaComponent(dimmed ? 0.55 : 1)]
+                ).draw(
+                    with: NSRect(x: numberStart, y: center.y - font.capHeight / 2, width: numberWidth, height: 0),
+                    options: [], context: nil)
+            }
             return true
         }
         picture.isTemplate = tone == nil  // the menu bar inks a template itself; a colored ring brings its own ink

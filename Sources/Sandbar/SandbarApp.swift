@@ -22,6 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panel.onClose = { [unowned self] in self.statusItem.isHighlighted = false }
-        statusItem.show(ring: .none, count: 0, dimmed: false)
+        statusItem.show(ring: .none, count: nil, dimmed: false)
     }
 }
