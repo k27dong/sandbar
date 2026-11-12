@@ -52,6 +52,7 @@ import os
     private let files: Files
     private let findTool: @Sendable (String) async -> URL?
     private var tools: [Tool: URL] = [:]
+    @ObservationIgnored private var toolLookup: Task<Void, Never>?
     private var isAsleep = false
     private var isStarted = false
     private var isFixed = false
@@ -102,7 +103,7 @@ import os
     }
 
     package var ring: StatusItem.Ring {
-        guard !accounts.isEmpty else { return .none }
+        guard !snapshot.accounts.isEmpty else { return .none }
         guard let fullest = snapshot.fullestLimit else { return .used(0, .normal) }
         return .used(fullest.used, fullest.level)
     }
@@ -139,8 +140,8 @@ import os
                     }
                 },
             ], network: network)
+        findTools()
         Task { [weak self] in
-            await self?.findTools()
             await self?.refresh(.all)
             while true {
                 do { try await Task.sleep(for: .seconds(5)) } catch { return }
@@ -157,6 +158,7 @@ import os
     }
 
     package func refresh(_ parts: Snapshot.Parts) async {
+        await toolLookup?.value
         guard !isFixed, hasNetwork, !isAsleep, !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -179,17 +181,26 @@ import os
         closePanel()
     }
 
-    private func findTools() async {
-        for tool in Tool.allCases where accounts.contains(where: { $0.tool == tool }) {
-            if let program = await findTool(tool.rawValue) {
-                tools[tool] = program
-                continue
+    private func findTools() {
+        let accounts = accounts
+        let earlier = toolLookup
+        toolLookup = Task { [weak self, findTool, files] in
+            await earlier?.value  // an earlier lookup that ends late must not overwrite this one
+            var tools: [Tool: URL] = [:]
+            var toolErrors: [Tool: any Error] = [:]
+            for tool in Tool.allCases where accounts.contains(where: { $0.tool == tool }) {
+                if let program = await findTool(tool.rawValue) {
+                    tools[tool] = program
+                    continue
+                }
+                do {
+                    tools[tool] = try ToolDownload(folder: files.tools).installed(tool)
+                } catch {
+                    toolErrors[tool] = error
+                }
             }
-            do {
-                tools[tool] = try ToolDownload(folder: files.tools).installed(tool)
-            } catch {
-                toolErrors[tool] = error
-            }
+            self?.tools = tools
+            self?.toolErrors = toolErrors
         }
     }
 
