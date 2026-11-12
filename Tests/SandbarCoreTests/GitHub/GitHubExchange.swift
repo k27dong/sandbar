@@ -51,14 +51,15 @@ actor GitHubExchange {
 enum GitHubAnswer {
     static func node(
         _ number: Int, title: String? = "Show the delivery date on the order summary", rollup: String? = "SUCCESS",
-        reviewDecision: String? = nil, reviews: String = "[]", stack: String = "null", stackEntry: String = "null"
+        reviewDecision: String? = nil, reviews: String = "[]", stack: String = "null", stackEntry: String = "null",
+        author: String = #"{"login": "kd", "avatarUrl": "https://avatars.githubusercontent.com/u/1001?v=4"}"#
     ) -> String {
         let titleField = title.map { #""title": "\#($0)","# } ?? ""
         return """
             {"id": "PR_\(number)", "number": \(number), \(titleField)
              "url": "https://github.com/acme/storefront/pull/\(number)", "isDraft": false,
              "createdAt": "2026-11-11T18:00:00Z", "updatedAt": "2026-11-11T18:00:00Z",
-             "author": {"login": "kd", "avatarUrl": "https://avatars.githubusercontent.com/u/1001?v=4"},
+             "author": \(author),
              "repository": {"nameWithOwner": "acme/storefront"},
              "baseRefName": "master", "headRefName": "change-\(number)",
              "reviewDecision": \(quoted(reviewDecision)),

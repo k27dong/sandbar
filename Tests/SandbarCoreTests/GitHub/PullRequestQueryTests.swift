@@ -34,10 +34,16 @@ struct PullRequestQueryTests {
          {"state": "COMMENTED", "submittedAt": "2026-11-12T17:00:00Z", "author": {"login": "dana"}}]
         """
     static let oauthRestriction = """
-        [{"type": "FORBIDDEN", "path": ["mine", "nodes", 0], "locations": [{"line": 2, "column": 3}],
+        {"type": "FORBIDDEN", "path": ["mine", "nodes", 0], "locations": [{"line": 2, "column": 3}],
           "message": "Although you appear to have the correct authorization credentials, the `acme` organization \
-        has enabled OAuth App access restrictions, meaning that data access to third-parties is limited."}]
+        has enabled OAuth App access restrictions, meaning that data access to third-parties is limited."}
         """
+    static let samlEnforcement = """
+        {"type": "FORBIDDEN", "path": ["mine", "nodes", 1], "locations": [{"line": 2, "column": 3}],
+         "message": "Resource protected by organization SAML enforcement. You must grant your OAuth token access \
+        to this organization."}
+        """
+    static let singleSignOn = "an organization that requires single sign-on"
     static let summariesNeedingDetails = ["FAILURE", "PENDING"]
     static let decisionCases: [(decision: String?, verdict: PullRequest.Verdict?)] = [
         ("APPROVED", .approved), ("CHANGES_REQUESTED", .changesRequested), ("REVIEW_REQUIRED", nil), (nil, nil),
@@ -159,10 +165,50 @@ struct PullRequestQueryTests {
     }
 
     @Test func organizationWithAppRestrictionsIsHidden() async throws {
-        let answer = GitHubAnswer.list(mine: ["null", GitHubAnswer.node(2)], errors: Self.oauthRestriction)
+        let answer = GitHubAnswer.list(mine: ["null", GitHubAnswer.node(2)], errors: "[\(Self.oauthRestriction)]")
         let lists = try await read(answer).lists
         #expect(lists.hiddenOrganizations == ["acme"])
         #expect(lists.mine.map(\.number) == [2])
+    }
+
+    @Test func pullRequestOfADeletedAccountIsGhost() async throws {
+        let lists = try await read(GitHubAnswer.list(mine: [GitHubAnswer.node(1, author: "null")])).lists
+        #expect(lists.mine.map(\.author) == [PullRequest.Author(login: "ghost", picture: nil)])
+    }
+
+    @Test func reviewOfADeletedAccountIsGhost() async throws {
+        let reviews = #"[{"state": "APPROVED", "submittedAt": "2026-11-12T16:00:00Z", "author": null}]"#
+        let lists = try await read(GitHubAnswer.list(mine: [GitHubAnswer.node(1, reviews: reviews)])).lists
+        #expect(
+            lists.mine.map(\.reviews) == [
+                [PullRequest.Review(author: "ghost", verdict: .approved, submittedAt: Sample.now - 7_200)]
+            ])
+    }
+
+    @Test func singleSignOnIsHiddenOnceAndKeepsTheLists() async throws {
+        let errors = "[\(Self.samlEnforcement), \(Self.samlEnforcement), \(Self.samlEnforcement)]"
+        let answer = GitHubAnswer.list(
+            mine: [GitHubAnswer.node(1), "null", "null", "null"], reviewRequests: [GitHubAnswer.node(2)],
+            errors: errors)
+        let lists = try await read(answer).lists
+        #expect(lists.mine.map(\.number) == [1])
+        #expect(lists.reviewRequests.map(\.number) == [2])
+        #expect(lists.hiddenOrganizations == [Self.singleSignOn])
+    }
+
+    @Test func bothKindsOfForbiddenAreHidden() async throws {
+        let answer = GitHubAnswer.list(
+            mine: ["null", "null", GitHubAnswer.node(3)], errors: "[\(Self.oauthRestriction), \(Self.samlEnforcement)]")
+        let lists = try await read(answer).lists
+        #expect(lists.hiddenOrganizations == ["acme", Self.singleSignOn])
+        #expect(lists.mine.map(\.number) == [3])
+    }
+
+    @Test func anotherErrorBesideDataIsNotUnderstood() async throws {
+        let errors = #"[{"type": "NOT_FOUND", "message": "Could not resolve to a node with the global id of 'x'."}]"#
+        await #expect(throws: GitHubError.notUnderstood("Could not resolve to a node with the global id of 'x'.")) {
+            try await read(GitHubAnswer.list(mine: [GitHubAnswer.node(1)], errors: errors))
+        }
     }
 
     @Test(arguments: checkTable) func checkOutcome(check: String, verdict: Checks.Verdict) async throws {

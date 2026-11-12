@@ -19,6 +19,9 @@ enum PullRequestQuery {
         var hiddenOrganizations: [String]
     }
 
+    private static let singleSignOnOrganization = "an organization that requires single sign-on"
+    private static let deletedAccount = "ghost"
+
     private static let fields = """
         id number title url isDraft createdAt updatedAt author { login avatarUrl } repository { nameWithOwner }
         baseRefName headRefName reviewDecision
@@ -120,14 +123,14 @@ enum PullRequestQuery {
         }
         guard let root else { throw GitHubError.notUnderstood(excerpt(answer)) }
         let problems = try root["errors"].map { try decoded([Problem].self, from: $0) } ?? []
-        let hiddenOrganizations = problems.compactMap { problem in
-            let restricted = #/the `(?<name>[^`]+)` organization has enabled OAuth App access restrictions/#
-            return problem.type == "FORBIDDEN"
-                ? problem.message.firstMatch(of: restricted).map { String($0.name) } : nil
-        }
-        guard let data = root["data"] as? [String: Any], hiddenOrganizations.count == problems.count else {
+        guard let data = root["data"] as? [String: Any], problems.allSatisfy({ $0.type == "FORBIDDEN" }) else {
             let messages = problems.map(\.message).joined(separator: "\n")
             throw GitHubError.notUnderstood(messages.isEmpty ? excerpt(answer) : String(messages.prefix(2_000)))
+        }
+        let hiddenOrganizations = problems.compactMap { problem in
+            let restricted = #/the `(?<name>[^`]+)` organization has enabled OAuth App access restrictions/#
+            if let match = problem.message.firstMatch(of: restricted) { return String(match.name) }
+            return problem.message.contains("SAML enforcement") ? singleSignOnOrganization : nil
         }
         return (data, hiddenOrganizations)
     }
@@ -180,7 +183,7 @@ enum PullRequestQuery {
             struct Author: Decodable { var login: String }
             var state: String
             var submittedAt: Date
-            var author: Author
+            var author: Author?
         }
         struct Stack: Decodable { var number: Int }
         struct StackEntry: Decodable { var position: Int }
@@ -199,7 +202,7 @@ enum PullRequestQuery {
         var isDraft: Bool
         var createdAt: Date
         var updatedAt: Date
-        var author: Author
+        var author: Author?
         var repository: Repository
         var baseRefName: String
         var headRefName: String
@@ -226,7 +229,9 @@ enum PullRequestQuery {
                     default: nil
                     }
                 return verdict.map {
-                    PullRequest.Review(author: review.author.login, verdict: $0, submittedAt: review.submittedAt)
+                    PullRequest.Review(
+                        author: review.author?.login ?? PullRequestQuery.deletedAccount, verdict: $0,
+                        submittedAt: review.submittedAt)
                 }
             }
             var place: PullRequest.StackPlace?
@@ -242,7 +247,8 @@ enum PullRequestQuery {
                 repository: repository.nameWithOwner,
                 baseBranch: baseRefName,
                 headBranch: headRefName,
-                author: PullRequest.Author(login: author.login, picture: author.avatarUrl),
+                author: PullRequest.Author(
+                    login: author?.login ?? PullRequestQuery.deletedAccount, picture: author?.avatarUrl),
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDraft: isDraft,
