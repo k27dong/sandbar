@@ -94,22 +94,23 @@ case "$opening" in
     shortcut) press p "option down, command down" ;;
     gear)
         sleep 1
-        osascript - "$program" <<'END' >/dev/null &
+        osascript - "$program" <<'END' >/dev/null
 on run arguments
-    tell application "System Events" to tell (first process whose unix id is ((item 1 of arguments) as integer))
-        set everything to entire contents of window 1
-        repeat with n from 1 to count of everything
-            set candidate to item n of everything
-            if role of candidate is "AXMenuButton" then
-                perform action "AXShowMenu" of candidate # an open menu holds the answer until it closes: run on its own
-                return
-            end if
-        end repeat
-    end tell
+    with timeout of 10 seconds
+        tell application "System Events" to tell (first process whose unix id is ((item 1 of arguments) as integer))
+            set everything to entire contents of window 1
+            repeat with n from 1 to count of everything
+                set candidate to item n of everything
+                if role of candidate is "AXMenuButton" then
+                    perform action "AXShowMenu" of candidate
+                    return
+                end if
+            end repeat
+        end tell
+    end timeout
     error "no gear in Sandbar's window"
 end run
 END
-        sleep 2
         ;;
     claude-sign-in)
         waitFor "Sign in" 20
