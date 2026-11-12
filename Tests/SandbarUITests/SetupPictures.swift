@@ -20,6 +20,10 @@ import Testing
         }
     }
 
+    private func pixels(_ picture: NSBitmapImageRep) throws -> Data {
+        Data(bytes: try #require(picture.bitmapData), count: picture.bytesPerRow * picture.pixelsHigh)
+    }
+
     private func ink(_ picture: NSBitmapImageRep, x: CGFloat, y: CGFloat) throws -> NSColor {
         try #require(picture.colorAt(x: Int(x * 2), y: Int(y * 2)))
     }
@@ -273,6 +277,34 @@ import Testing
                 #expect(isBlue(try buttonInk(picture, middle: rowTop + 23)), "Connect")
                 #expect(!hasWarningText(picture, rowTop: rowTop))
             }
+        }
+    }
+
+    @Test func afterSetupConnectShowsTheSameCodeScreenAndBackReturnsToTheLists() async throws {
+        var atFirstLaunch: [Data] = []
+        try await withHome(fresh: true) { home in
+            let github = GitHubStub()
+            let model = home.model(send: github.send, sleep: { _ in try await Task.sleep(for: .seconds(30)) })
+            Task { await model.connectGitHub() }
+            try await eventually("the code shows") { model.gitHub != .none }
+            atFirstLaunch = try pictures("code", of: model).map(pixels)
+            model.cancelGitHubSignIn()
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+        }
+        try await withHome { home in
+            var snapshot = stage("day")
+            snapshot.pullRequests.trouble = .signedOut
+            let github = GitHubStub()
+            let model = home.model(
+                snapshot: snapshot, send: github.send, sleep: { _ in try await Task.sleep(for: .seconds(30)) })
+            let lists = try pictures("lists-before-the-code", of: model).map(pixels)
+            Task { await model.connectGitHub() }
+            try await eventually("the code shows") { model.gitHub != .connected(login: "kd", throughGh: false) }
+            #expect(try pictures("code-after-setup", of: model).map(pixels) == atFirstLaunch)
+
+            model.cancelGitHubSignIn()
+            try await eventually("the sign-in ends") { !model.isSigningIn }
+            #expect(try pictures("lists-after-back", of: model).map(pixels) == lists)
         }
     }
 
