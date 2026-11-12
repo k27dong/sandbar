@@ -14,11 +14,12 @@ package struct PanelView: View {
 
     package var body: some View {
         let tone = model.isOffline ? Color.warningText : .secondary
+        let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy  // a mouse, or "Show scroll bars: Always"
         VStack(spacing: 0) {
             ScrollView {
                 PullRequestRows()
             }
-            .scrollIndicators(.never)  // a bar that takes room would move the rows out of line with the footer
+            .scrollIndicators(barTakesRoom ? .never : .automatic)  // or the rows would end short of the footer's line
             ThinLine()
             HStack(spacing: 8) {
                 Button {

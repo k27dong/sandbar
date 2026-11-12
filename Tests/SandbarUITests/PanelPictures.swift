@@ -83,11 +83,18 @@ func stage(_ name: String) -> Snapshot {
         }
     }
 
-    @Test func aListTallerThanTheLimitScrollsAboveTheFooter() async throws {
+    @Test func aListTallerThanTheLimitScrollsAtItsFullWidthAboveTheFooter() async throws {
+        let scrollBars = NSScroller.preferredScrollerStyle == .legacy ? "always" : "when-scrolling"
         try await withDefaults { defaults in
             let model = try withTheFirstStackOpen(model(stage("many"), defaults))
-            #expect(try picture("many-open", of: model).pixelsHigh > 1_400)
-            #expect(try picture("many-limit", of: model, maxHeight: 700).pixelsHigh == 1_400)
+            let whole = try picture("many-open", of: model)
+            let limited = try picture("many-limit-scroll-bars-\(scrollBars)", of: model, maxHeight: 700)
+            #expect(whole.pixelsHigh > 1_400)
+            #expect(limited.pixelsHigh == 1_400)
+            let acrossTheFirstRow = { (picture: NSBitmapImageRep) in
+                (0..<848).map { picture.colorAt(x: $0, y: 38) }
+            }
+            #expect(acrossTheFirstRow(limited) == acrossTheFirstRow(whole))
         }
     }
 
