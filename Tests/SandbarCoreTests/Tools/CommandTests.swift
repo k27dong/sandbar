@@ -4,7 +4,7 @@ import Testing
 
 struct CommandTests {
     static let sh = URL(filePath: "/bin/sh")
-    static let startFailureCases: [(failure: Int32, retried: Bool, error: ToolError)] = [
+    static let startFailureCases: [(failure: Int32, retried: Bool, meaning: ToolError)] = [
         (ENOENT, false, .missing), (ENOTDIR, false, .missing), (EACCES, false, .missing), (ENOEXEC, false, .missing),
         (ETXTBSY, true, .failed(status: ETXTBSY, output: "Text file busy")),
         (EMFILE, false, .failed(status: EMFILE, output: "Too many open files")),
@@ -36,13 +36,14 @@ struct CommandTests {
         }
     }
 
-    @Test(arguments: startFailureCases) func aFailedStartIsReadHonestly(failure: Int32, retried: Bool, error: ToolError)
-    {
+    @Test(arguments: startFailureCases) func aFailedStartIsReadHonestly(
+        failure: Int32, retried: Bool, meaning: ToolError
+    ) {
         let started = NSError(
             domain: NSCocoaErrorDomain, code: CocoaError.fileReadUnknown.rawValue,
             userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(failure))])
         #expect(Command.isWorthRetrying(started) == retried)
-        #expect(Command.toolError(forStartFailure: started) == error)
+        #expect(Command.toolError(forStartFailure: started) == meaning)
     }
 
     @Test func aPathThatIsNotAFileIsMissing() {
