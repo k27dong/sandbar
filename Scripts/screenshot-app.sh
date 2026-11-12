@@ -15,6 +15,9 @@ cp -R "$root/build/Sandbar.app" "$folder"
 "$folder/Sandbar.app/Contents/MacOS/Sandbar" "$@" &
 program=$!
 trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
+case "$opening" in  # System Events cannot read the label of a SwiftUI button
+    claude-sign-in | spoken | keys) swiftc -O "$root/Scripts/accessibility.swift" -o "$folder/accessibility" ;;
+esac
 
 item() {  # the status item has a menu bar of its own, beside Sandbar's hidden main menu of three
     osascript -e 'with timeout of 10 seconds' \
@@ -53,43 +56,7 @@ expectWindow() {
     fi
 }
 element() {
-    osascript - "$program" "$1" "$2" <<'END'
-on run arguments
-    set {program, wanted, action} to arguments
-    with timeout of 20 seconds
-        tell application "System Events" to tell (first process whose unix id is (program as integer))
-            set everything to entire contents of window 1  # a list walked in place is asked for again at each turn
-            repeat with n from 1 to count of everything
-                set candidate to item n of everything
-                set labels to {}
-                try
-                    set end of labels to name of candidate
-                end try
-                try
-                    set end of labels to description of candidate
-                end try
-                try
-                    set end of labels to value of candidate
-                end try
-                try
-                    set end of labels to role of candidate
-                end try
-                if labels contains wanted then
-                    if action is "click" then click candidate
-                    if action is "value" then return value of candidate
-                    if action is "middle" then
-                        set {x, y} to position of candidate
-                        set {width, height} to size of candidate
-                        return ((x + width div 2) as text) & " " & ((y + height div 2) as text)
-                    end if
-                    return
-                end if
-            end repeat
-        end tell
-    end timeout
-    error "no " & wanted & " in Sandbar's window"
-end run
-END
+    "$folder/accessibility" "$program" "$@"
 }
 clickAt() {  # with the mouse, as a person does: System Events' click is a press that no mouse made
     osascript -l JavaScript - "$1" "$2" <<'END'
@@ -105,7 +72,7 @@ END
 }
 waitFor() {
     deadline=$(($(date +%s) + $2))
-    until element "$1" find 2>/dev/null; do
+    until element has "$1" 2>/dev/null; do
         if [ "$(date +%s)" -ge "$deadline" ]; then
             echo "Sandbar never showed $1" >&2
             exit 1
@@ -151,13 +118,17 @@ END
         ;;
     claude-sign-in)
         waitFor "Sign in" 20
-        element "Sign in" click  # Claude's row comes first
+        element press "Sign in"  # Claude's row comes first
         waitFor "Finish in your browser" 120
+        sleep 5  # the browser's page comes forward now, which closes the panel
         waitFor AXTextField 20
         printf WDJB-MJHT | pbcopy
-        clickAt $(element AXTextField middle)
+        field="$(element frame AXTextField)"
+        set -- $field
+        clickAt $(($1 + $3 / 2)) $(($2 + $4 / 2))
         press v "command down"
         ;;
+    spoken) sleep 1 ;;
     keys)  # on the many stage: the sixth row down is the first stack's fold row, and Return opens that stack
         sleep 1
         key 125 6
@@ -174,8 +145,19 @@ if [ "$opening" = settings ]; then
     done
 fi
 if [ "$opening" = keys ]; then
+    if ! element list | grep -q "number 41309, 8 days | selected"; then
+        echo "the arrow keys and Return did not select the row that appeared at the top of the opened stack" >&2
+        exit 1
+    fi
     key 125 60
     capture "${output%.png}-last-row.png"
+    row="$(element frame "Draft, Try a smaller image cache for product pages, number 104, 1 month")"
+    list="$(element frame AXScrollArea)"
+    set -- $row $list
+    if [ "$2" -lt "$6" ] || [ $(($2 + $4)) -gt $(($6 + $8)) ]; then
+        echo "the selected last row did not scroll into view: it spans $2 to $(($2 + $4)), the list $6 to $(($6 + $8))" >&2
+        exit 1
+    fi
 fi
 if [ "$opening" = close ]; then
     expectWindow General
@@ -202,14 +184,31 @@ if [ "$opening" = close ]; then
     }
     exit 0
 fi
+if [ "$opening" = spoken ]; then  # on the limit stage: a usage row, a review request, one of his rows, the footer
+    element list >"${output%.png}.txt"
+    for sentence in "Work, Month, 3120 dollars, 52 percent, 19 days 9 hours left" \
+        "Review requested by mchen, Stop the importer from retrying uploads that already failed twice, checks passed, number 6821, 2 days" \
+        "Approved, Read saved carts through one cart reader, checks passed, number 41250, 3 days" Refresh Menu; do
+        element has "$sentence" || unread=yes
+    done
+    if [ -n "${unread:-}" ]; then exit 1; fi
+fi
 if [ "$opening" = claude-sign-in ]; then
-    pasted="$(element AXTextField value)"
+    pasted="$(element value AXTextField)"
     if [ "$pasted" != WDJB-MJHT ]; then
         echo "⌘V left \"$pasted\" in the code field" >&2
         exit 1
     fi
-    element Cancel click
-    waitFor "Not signed in" 20
+    element press Cancel
+    deadline=$(($(date +%s) + 20))
+    until [ "$(element list | grep -c "Not signed in")" = 2 ]; do  # Codex's row says so all along
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "Cancel did not bring Claude's row back to Not signed in" >&2
+            exit 1
+        fi
+        if [ "$(frontWindow)" = none ]; then item click || true; fi
+        sleep 1
+    done
     capture "$(dirname "$output")/app-claude-cancelled.png"
     if pgrep -x claude >/dev/null; then
         echo "a claude process is still running after Cancel" >&2
