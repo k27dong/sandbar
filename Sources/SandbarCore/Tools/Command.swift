@@ -206,17 +206,19 @@ package enum Command {
     private static let launching = NSLock()  // on Linux a program inherits every descriptor made while it is spawned
 
     private static func newPipe() throws -> Pipe {
-        try launching.withLock {
-            let pipe = Pipe()
-            #if os(Linux)
+        #if os(Linux)
+            return try launching.withLock {
+                let pipe = Pipe()
                 for end in [pipe.fileHandleForReading, pipe.fileHandleForWriting] {
                     guard fcntl(end.fileDescriptor, F_SETFD, FD_CLOEXEC) == 0 else {
                         throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
                     }
                 }
-            #endif
-            return pipe
-        }
+                return pipe
+            }
+        #else
+            return Pipe()  // Darwin's spawn closes every descriptor it was not handed
+        #endif
     }
 
     private static func collect(_ handle: FileHandle) async -> Data {
