@@ -20,8 +20,8 @@ package enum ClaudeSignIn {
             isSignedIn: status.loggedIn, organization: status.orgName, planWord: status.subscriptionType)
     }
 
-    package static func begin(tool: URL, environment: [String: String]) throws -> Command.Running {
-        try Command.start(tool, ["auth", "login"], environment: environment)
+    package static func begin(tool: URL, environment: [String: String]) async throws -> Command.Running {
+        try await Command.start(tool, ["auth", "login"], environment: environment)
     }
 
     package static func address(in line: String) -> URL? {

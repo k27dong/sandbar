@@ -38,7 +38,7 @@ struct ClaudeSignInTests {
             [ "$code" = "code-123" ]
             """
         )
-        let running = try ClaudeSignIn.begin(tool: tool, environment: [:])
+        let running = try await ClaudeSignIn.begin(tool: tool, environment: [:])
         var lines = running.lines.makeAsyncIterator()
         #expect(await lines.next() == "https://claude.example/oauth/authorize?code=true")
         try running.send("code-123")

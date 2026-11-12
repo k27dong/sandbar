@@ -43,7 +43,7 @@ struct AccountsLiveTests {
 
     @Test func aClaudeSignInStartsAndIsStopped() async throws {
         let claude = try emptyProfile(for: .claude)
-        let running = try ClaudeSignIn.begin(
+        let running = try await ClaudeSignIn.begin(
             tool: Live.program("SANDBAR_LIVE_CLAUDE"), environment: claude.environment)
         let deadline = Task {
             try await Task.sleep(for: .seconds(30))
