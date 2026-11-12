@@ -3,6 +3,7 @@ import SandbarCore
 import Testing
 
 struct CodexSignInTests {
+    static let signOutAnswers = ["{}", #"{"status":"done"}"#]
     static let address = "https://auth.openai.example/oauth/authorize?state=abc"
 
     func server(answering answers: String) throws -> URL {
@@ -95,5 +96,26 @@ struct CodexSignInTests {
         let cancelled = try String(
             contentsOf: tool.deletingLastPathComponent().appending(path: "cancelled"), encoding: .utf8)
         #expect(cancelled.contains(#""method":"account/login/cancel","params":{"loginId":"login-1"}"#))
+    }
+
+    @Test(arguments: signOutAnswers) func signingOutIsDoneWhateverTheAnswerHolds(answer: String) async throws {
+        let tool = try server(
+            answering: """
+                *'"method":"account/logout","params":null'*) printf '{"id":%s,"result":%s}\\n' "$id" '\(answer)' ;;
+                """
+        )
+        try await CodexSignIn.signOut(tool: tool, environment: [:])
+    }
+
+    @Test func aRefusedSignOutFails() async throws {
+        let tool = try server(
+            answering: """
+                *'"method":"account/logout","params":null'*)
+                  echo "{\\"id\\":$id,\\"error\\":{\\"code\\":-32600,\\"message\\":\\"not signed in\\"}}" ;;
+                """
+        )
+        await #expect(throws: ToolError.failed(status: -32600, output: "not signed in")) {
+            try await CodexSignIn.signOut(tool: tool, environment: [:])
+        }
     }
 }
