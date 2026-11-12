@@ -62,7 +62,8 @@ package final class PanelWindow {
         self.panel = panel
         monitors = [
             NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-                self?.close()
+                // macOS 27 draws the item in another process, so a click on it lands here too; its action closes
+                if !buttonWindow.frame.contains(NSEvent.mouseLocation) { self?.close() }
             },
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard Int(event.keyCode) == kVK_Escape else { return event }

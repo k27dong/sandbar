@@ -74,7 +74,7 @@ package final class StatusItem {
     }
 
     @objc private func clicked() {
-        onClick()
+        Task { onClick() }  // one turn later: the button first ends its own click, which clears any highlight
     }
 
     private nonisolated static var numberFont: NSFont { .monospacedDigitSystemFont(ofSize: 13, weight: .semibold) }
