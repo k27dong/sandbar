@@ -12,11 +12,13 @@ cp -R "$root/build/Sandbar.app" "$folder"
 program=$!
 trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
 
-item() {
+item() {  # the status item has a menu bar of its own, beside Sandbar's hidden main menu of three
     osascript -e 'with timeout of 10 seconds' \
-        -e "tell application \"System Events\" to tell menu bar item 1 of menu bar $1 of (first process whose unix id is $program)" \
+        -e "tell application \"System Events\" to tell (first process whose unix id is $program)" \
+        -e 'repeat with bar in menu bars' -e 'if (count of menu bar items of bar) is 1 then exit repeat' -e 'end repeat' \
+        -e 'tell menu bar item 1 of bar' \
         -e 'if item 1 of (get position) < 0 then error "not placed in the menu bar yet: a click now opens the panel off screen"' \
-        -e "$2" -e 'end tell' -e 'end timeout' >/dev/null
+        -e "$1" -e 'end tell' -e 'end tell' -e 'end timeout' >/dev/null
 }
 press() {
     osascript -e "tell application \"System Events\" to keystroke \"$1\" using {$2}"
@@ -63,7 +65,7 @@ waitFor() {
             exit 1
         fi
         windows="$(osascript -e "tell application \"System Events\" to count windows of (first process whose unix id is $program)")"
-        if [ "$windows" = 0 ]; then item 2 click || item 1 click || true; fi  # a browser page that opens closes the panel
+        if [ "$windows" = 0 ]; then item click || true; fi  # a browser page that opens closes the panel
         sleep 1
     done
 }
@@ -71,7 +73,7 @@ waitFor() {
 action=click
 if [ "$opening" = shortcut ]; then action='get position'; fi
 deadline=$(($(date +%s) + 30))
-until item 2 "$action" || item 1 "$action"; do  # menu bar 1 is the app's own menu once it has one
+until item "$action"; do
     if [ "$(date +%s)" -ge "$deadline" ]; then
         echo "System Events could not click Sandbar's menu bar item" >&2
         exit 1
