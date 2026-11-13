@@ -140,9 +140,14 @@ actor GitHubStub {
 }
 
 @MainActor final class Home {
+    struct Refused: Error {}
+
     let defaults: UserDefaults
     let files: AppModel.Files
     let keychainItem = "test-\(UUID().uuidString)"
+    var launchesAtLogin = false
+    var loginItemRefuses = false
+    var loginItemAsked: [Bool] = []
     private var made: [() -> AppModel?] = []
 
     static let noDownload: (URL) -> ToolDownload = { folder in
@@ -166,7 +171,15 @@ actor GitHubStub {
         let model = AppModel(
             snapshot: snapshot, preferences: Preferences(defaults: defaults), now: AppModelTests.now, files: files,
             findTool: findTool, send: send, sleep: sleep, keychain: keychain ?? Keychain.Item(named: keychainItem),
-            toolDownload: toolDownload, openAddress: openAddress)
+            toolDownload: toolDownload, openAddress: openAddress,
+            loginItem: (
+                { [unowned self] in launchesAtLogin },
+                { [unowned self] on in
+                    loginItemAsked.append(on)
+                    if loginItemRefuses { throw Refused() }
+                    launchesAtLogin = on
+                }
+            ))
         made.append { [weak model] in model }
         return model
     }

@@ -85,11 +85,6 @@ package final class PanelWindow {
                     self?.close()
                     return nil
                 }
-                let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
-                if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "q" {
-                    NSApplication.shared.terminate(nil)
-                    return nil
-                }
                 return event
             },
         ].compactMap { $0 }

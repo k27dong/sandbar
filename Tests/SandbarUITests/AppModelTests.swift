@@ -671,4 +671,154 @@ import Testing
         #expect(model.snapshot == stage("offline"))
         #expect(model.now == Self.now)
     }
+
+    @Test func theShortcutStartsAsOptionCommandPAndCanBeChangedOrCleared() async throws {
+        try await withDefaults { defaults in
+            let preferences = Preferences(defaults: defaults)
+            #expect(preferences.shortcut == .standard)
+            let controlCommandK = Shortcut.Keys(keyCode: 40, modifiers: 4096 | 256)
+            preferences.shortcut = controlCommandK
+            #expect(Preferences(defaults: defaults).shortcut == controlCommandK)
+            preferences.shortcut = nil
+            #expect(Preferences(defaults: defaults).shortcut == nil)
+        }
+    }
+
+    @Test func theShortcutSaysItsKeysInTheMacsOrder() {
+        #expect(Shortcut.Keys.standard.text == "⌥⌘P")
+        #expect(Shortcut.Keys(keyCode: 40, modifiers: 4096 | 256).text == "⌃⌘K")
+        #expect(Shortcut.Keys(keyCode: 49, modifiers: 2048 | 512).text == "⌥⇧Space")
+    }
+
+    @Test func settingsReopenOnThePaneUsedLast() async throws {
+        try await withDefaults { defaults in
+            #expect(Preferences(defaults: defaults).settingsPane == .general)
+            Preferences(defaults: defaults).settingsPane = .accounts
+            #expect(Preferences(defaults: defaults).settingsPane == .accounts)
+        }
+    }
+
+    @Test func finishingSetupSwitchesLaunchAtLoginOnTheFirstTimeOnly() async throws {
+        try await withHome(fresh: true) { home in
+            let model = home.model()
+            #expect(!model.launchesAtLogin)
+            model.finishSetup()
+            #expect(home.loginItemAsked == [true])
+            #expect(model.launchesAtLogin)
+            #expect(model.launchAtLoginNote == nil)
+
+            model.launchAtLogin(false)
+            #expect(!model.launchesAtLogin)
+            home.model().finishSetup()
+            #expect(home.loginItemAsked == [true, false])
+        }
+    }
+
+    @Test func aRefusedLoginItemIsSaidUnderTheSwitchWhichShowsTheTrueState() async throws {
+        try await withHome(fresh: true) { home in
+            home.loginItemRefuses = true
+            let model = home.model()
+            model.finishSetup()
+            #expect(model.isSetUp)
+            #expect(!model.launchesAtLogin)
+            #expect(model.launchAtLoginNote?.hasPrefix("macOS did not change it: ") == true)
+            #expect(home.loginItemAsked == [true])
+
+            home.loginItemRefuses = false
+            model.launchAtLogin(true)
+            #expect(model.launchesAtLogin)
+            #expect(model.launchAtLoginNote == nil)
+        }
+    }
+
+    @Test func choosingRepositoriesStartsWithEveryListedOneAndHidesTheOthers() async throws {
+        try await withHome { home in
+            let model = home.model(snapshot: stage("day"))
+            let everything = model.list.openCount
+            #expect(!model.choosesRepositories)
+            #expect(model.repositoryChoices == ["acme/api", "acme/storefront", "acme/tools"])
+
+            model.choosesRepositories = true
+            #expect(model.preferences.chosenRepositories == ["acme/api", "acme/storefront", "acme/tools"])
+            #expect(model.list.openCount == everything)
+
+            model.choose("acme/storefront", false)
+            model.choose("acme/tools", false)
+            #expect(model.preferences.chosenRepositories == ["acme/api"])
+            #expect(model.list.openCount < everything)
+            #expect(
+                (model.list.mine.map(\.lead) + model.list.reviewRequests).allSatisfy { $0.repository == "acme/api" })
+
+            model.choose("acme/web", true)
+            #expect(model.repositoryChoices == ["acme/api", "acme/storefront", "acme/tools", "acme/web"])
+            #expect(model.preferences.chosenRepositories == ["acme/api", "acme/web"])
+
+            model.choosesRepositories = true
+            #expect(model.preferences.chosenRepositories == ["acme/api", "acme/web"])
+            model.choosesRepositories = false
+            #expect(model.preferences.chosenRepositories == nil)
+            #expect(model.list.openCount == everything)
+        }
+    }
+
+    @Test func aShownSnapshotChangesNothingReal() async throws {
+        try await withHome { home in
+            let lookups = Lookups()
+            let github = GitHubStub()
+            let model = AppModel(
+                showing: stageFile("day"), files: home.files, keychain: Keychain.Item(named: home.keychainItem),
+                findTool: { await lookups.find($0) }, send: github.send, toolDownload: Home.noDownload)
+            let accounts = model.accounts
+            #expect(model.accountsAreLocked)
+            #expect(!model.canRenameAccounts)
+            #expect(home.model().canRenameAccounts)
+
+            model.rename(accounts[0], to: "Renamed")
+            try await ends("the remove does nothing") { await model.remove(accounts[1]) }
+            try await ends("the sign-in does nothing") { await model.addAccount(.claude) }
+            try await ends("taking the Mac's sign-in does nothing") { await model.useExisting(.codex) }
+            try await ends("connecting does nothing") { await model.connectGitHub() }
+            try await ends("taking gh's sign-in does nothing") { await model.useGhSignIn() }
+            model.signOutOfGitHub()
+            model.findSignIns()
+            try await Task.sleep(for: .milliseconds(100))  // a lookup started by mistake would ask for gh by now
+
+            #expect(model.accounts == accounts)
+            #expect(model.gitHub == .none)
+            #expect(model.signInStep == [.claude: .idle, .codex: .idle])
+            #expect(try entries(of: home.files.accounts.deletingLastPathComponent()).isEmpty)
+            #expect(try Keychain.read(home.keychainItem) == "made-up-token")
+            #expect(await lookups.count == 0)
+            #expect(await github.requests == 0)
+        }
+    }
+
+    @Test func aShownSnapshotReadsAndSavesNoSettings() throws {
+        let saved = UserDefaults.standard.string(forKey: "titles")
+        let model = AppModel(showing: stageFile("day"))
+        #expect(model.preferences.titles == .oneLine)
+        model.preferences.titles = saved == "twoLines" ? .oneLine : .twoLines
+        #expect(UserDefaults.standard.string(forKey: "titles") == saved)
+        #expect(AppModel(showing: stageFile("day")).preferences.titles == .oneLine)
+        #expect(!model.launchesAtLogin)
+    }
+
+    @Test func theLaunchAtLoginSwitchShowsAChangeMadeElsewhere() async throws {
+        try await withHome { home in
+            let model = home.model()
+            #expect(!model.launchesAtLogin)
+            home.launchesAtLogin = true
+            model.checkLaunchAtLogin()
+            #expect(model.launchesAtLogin)
+        }
+    }
+
+    nonisolated static let takenKeys: [(modifiers: UInt32, isTaken: Bool)] = [
+        (256, false), (256 | 512, false), (512, false), (0, false), (2048, true), (4096, true), (256 | 2048, true),
+        (256 | 4096 | 512, true),
+    ]
+
+    @Test(arguments: takenKeys) func aShortcutNeedsControlOrOption(keys: (modifiers: UInt32, isTaken: Bool)) {
+        #expect((Shortcut.Keys(taking: 8, modifiers: keys.modifiers) != nil) == keys.isTaken)
+    }
 }

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import SandbarCore
 
 extension AppModel {
@@ -20,7 +20,8 @@ extension AppModel {
     private static let notSavedNote = "Accounts could not be saved."
 
     package var isSetUp: Bool { isFixed || preferences.isSetUp }
-    package var isChangingAccounts: Bool { accountAction != nil }
+    package var accountsAreLocked: Bool { isFixed || accountAction != nil }
+    package var canRenameAccounts: Bool { !isFixed }
     package var isSigningIn: Bool { accountAction.map { $0.kind != .removal } ?? false }
     package var canUseGh: Bool { ghHasSignIn && !gitHubRefusedGh }
 
@@ -39,6 +40,29 @@ extension AppModel {
         let connected =
             (needsGitHubSignIn ? 0 : 1) + Tool.allCases.count { tool in accounts.contains { $0.tool == tool } }
         return connected == 0 ? "Nothing connected" : "\(connected) of 3 connected"
+    }
+
+    var gitHubFailure: String? {
+        let reading = snapshot.pullRequests
+        let wasConnected = if case .connected = gitHub { true } else { false }
+        let stoppedWorking = needsGitHubSignIn && reading.trouble == .signedOut && (isSetUp || wasConnected)
+        return gitHubNote ?? (stoppedWorking ? reading.detail : nil)
+    }
+
+    package func signInTrouble(_ tool: Tool) -> String? {
+        if case .failed(let sentence) = signInStep[tool] { return sentence }
+        if case .unreadable(let sentence) = existingSignIns[tool] { return sentence }
+        return nil
+    }
+
+    func signInToGitHub() async {
+        if canUseGh { await useGhSignIn() } else { await connectGitHub() }
+    }
+
+    func copyCodeAndOpenGitHub(_ code: GitHubSignIn.Code) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(code.userCode, forType: .string)
+        openGitHubForCode()
     }
 
     package func connectGitHub() async {
@@ -99,6 +123,7 @@ extension AppModel {
     }
 
     package func signOutOfGitHub() {
+        guard !isFixed else { return }
         if let accountAction, accountAction.kind == .gitHubSignIn { accountAction.task.cancel() }
         gitHubNote = nil
         forgetKeptSignIn()
@@ -234,7 +259,10 @@ extension AppModel {
     }
 
     package func rename(_ account: Account, to name: String) {
-        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard canRenameAccounts, !name.isEmpty, let index = accounts.firstIndex(where: { $0.id == account.id }) else {
+            return
+        }
         accounts[index].name = name
         accountsChanged()
     }
@@ -254,11 +282,13 @@ extension AppModel {
     }
 
     package func finishSetup() {
+        guard !preferences.isSetUp else { return }
         preferences.isSetUp = true
+        launchAtLogin(true)
     }
 
     private func changingAccounts(_ kind: AccountAction, _ work: @escaping () async -> Void) async {
-        guard accountAction == nil else { return }
+        guard !accountsAreLocked else { return }
         let task = Task { await work() }
         accountAction = (task, kind)
         await task.value

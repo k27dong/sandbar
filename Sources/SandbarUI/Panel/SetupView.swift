@@ -12,7 +12,7 @@ package struct SetupView: View {
             if case .code(let code) = model.gitHub {
                 Heading(title: "Connect GitHub", subtitle: "Enter this code on the GitHub page that just opened.")
                 VStack(spacing: 0) {
-                    Text("\(code.address.host() ?? "")\(code.address.path())")
+                    Text(code.shownAddress)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .frame(height: 18)
@@ -22,12 +22,8 @@ package struct SetupView: View {
                         .frame(height: 32)
                         .padding(.top, 4)
                         .padding(.bottom, 10)
-                    Button("Copy code and open GitHub") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(code.userCode, forType: .string)
-                        model.openGitHubForCode()
-                    }
-                    .buttonStyle(RowButton(isPrimary: true))
+                    Button(SignInWords.copyCode) { model.copyCodeAndOpenGitHub(code) }
+                        .buttonStyle(RowButton(isPrimary: true))
                 }
                 .lineLimit(1)
                 .padding(.horizontal, 10)
@@ -71,26 +67,43 @@ package struct SetupView: View {
     }
 }
 
+enum SignInWords {
+    static let notSignedIn = "Not signed in"
+    static let signedInOnThisMac = "Signed in on this Mac"
+    static let useIt = "Use it"
+    static let useGh = "Use gh's sign-in"
+    static let copyCode = "Copy code and open GitHub"
+    static let cancel = "Cancel"
+    static let finishInBrowser = "Finish in your browser"
+    static let pasteCode = "Paste code here if prompted"
+
+    static func fetching(_ tool: Tool) -> String { "Fetching \(tool.programName)…" }
+}
+
+extension AppModel {
+    var gitHubSignInTitle: String { canUseGh ? SignInWords.useGh : "Connect" }
+}
+
+extension GitHubSignIn.Code {
+    var shownAddress: String { "\(address.host() ?? "")\(address.path())" }
+}
+
 struct GitHubRow: View {
     @Environment(AppModel.self) private var model
     var namesHiddenOrganizations = false
 
     var body: some View {
         let needsSignIn = model.needsGitHubSignIn
-        let reading = model.snapshot.pullRequests
         let connection: (login: String, throughGh: Bool)? =
             if case .connected(let login, let throughGh) = model.gitHub { (login, throughGh) } else { nil }
-        let stoppedWorking = needsSignIn && reading.trouble == .signedOut && (model.isSetUp || connection != nil)
-        let failure = model.gitHubNote ?? (stoppedWorking ? reading.detail : nil)
+        let failure = model.gitHubFailure
         let hidden = namesHiddenOrganizations && !needsSignIn ? model.hiddenOrganizationsNote : nil
         let detail = failure ?? hidden ?? (needsSignIn ? nil : connection?.login) ?? "Your pull requests and reviews"
         ConnectionRow(icon: .gitHub, name: "GitHub", detail: detail, isFailure: failure != nil) {
             if needsSignIn {
-                SignInButton(title: model.canUseGh ? "Use gh's sign-in" : "Connect", isPrimary: true) {
-                    if model.canUseGh { await model.useGhSignIn() } else { await model.connectGitHub() }
-                }
+                SignInButton(title: model.gitHubSignInTitle, isPrimary: true) { await model.signInToGitHub() }
             } else if hidden != nil, model.canUseGh, connection?.throughGh == false {
-                SignInButton(title: "Use gh's sign-in", isPrimary: false) { await model.useGhSignIn() }
+                SignInButton(title: SignInWords.useGh, isPrimary: false) { await model.useGhSignIn() }
             } else {
                 ConnectedMark()
             }
@@ -108,10 +121,11 @@ private struct ToolRow: View {
         let step = model.signInStep[tool] ?? .idle
         let cancel = HStack(spacing: 10) {
             Spinner()
-            Button("Cancel") { model.cancelSignIn(tool) }
+            Button(SignInWords.cancel) { model.cancelSignIn(tool) }
                 .buttonStyle(RowButton(isPrimary: false))
         }
-        let signIn = SignInButton(title: model.canUseExisting(tool) ? "Use it" : "Sign in", isPrimary: isNext) {
+        let signIn = SignInButton(title: model.canUseExisting(tool) ? SignInWords.useIt : "Sign in", isPrimary: isNext)
+        {
             if model.canUseExisting(tool) { await model.useExisting(tool) } else { await model.addAccount(tool) }
         }
         if let account = model.accounts.first(where: { $0.tool == tool }) {
@@ -121,10 +135,10 @@ private struct ToolRow: View {
         } else {
             switch step {
             case .fetching:
-                ConnectionRow(icon: icon, name: tool.title, detail: "Fetching \(tool.programName)…") { cancel }
+                ConnectionRow(icon: icon, name: tool.title, detail: SignInWords.fetching(tool)) { cancel }
             case .waitingForBrowser:
                 ConnectionRow(
-                    icon: icon, name: tool.title, detail: "Finish in your browser",
+                    icon: icon, name: tool.title, detail: SignInWords.finishInBrowser,
                     onDetailClick: model.openSignInAgain
                 ) { cancel }
                 if tool == .claude { PastedCodeField() }
@@ -139,7 +153,7 @@ private struct ToolRow: View {
                 case .usable, .absent:
                     ConnectionRow(
                         icon: icon, name: tool.title,
-                        detail: model.canUseExisting(tool) ? "Signed in on this Mac" : "Not signed in"
+                        detail: model.canUseExisting(tool) ? SignInWords.signedInOnThisMac : SignInWords.notSignedIn
                     ) { signIn }
                 }
             }
@@ -212,7 +226,7 @@ private struct SignInButton: View {
             Task { await action() }
         }
         .buttonStyle(RowButton(isPrimary: isPrimary))
-        .unavailable(model.isChangingAccounts)
+        .unavailable(model.accountsAreLocked)
     }
 }
 
@@ -277,7 +291,7 @@ private struct PastedCodeField: View {
     @State private var code = ""
 
     var body: some View {
-        TextField("Paste code here if prompted", text: $code)
+        TextField(SignInWords.pasteCode, text: $code)
             .textFieldStyle(.plain)
             .font(.system(size: 11.5, design: .monospaced))
             .padding(.horizontal, 8)
