@@ -16,6 +16,19 @@ package enum ToolLocation {
         ]
     }
 
+    package static func searchPath(shell: URL = loginShell) async throws -> String {
+        let asked = try await Command.run(shell, ["-lc", "printf '%s\\n' \"$PATH\""], timeout: .seconds(5))
+        let printed = String(decoding: asked.standardOutput, as: UTF8.self)
+        guard asked.status == 0 else {
+            throw ToolError.failed(
+                status: asked.status, output: String(decoding: asked.standardError.prefix(2_000), as: UTF8.self))
+        }
+        guard let path = printed.split(separator: "\n").last(where: { $0.hasPrefix("/") }) else {
+            throw ToolError.notUnderstood(String(printed.suffix(2_000)))  // a login file may print before the path
+        }
+        return String(path)
+    }
+
     package static func find(_ name: String, shell: URL = loginShell, folders: [URL] = usualFolders) async -> URL? {
         let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-".utf8)
         guard !name.isEmpty, name.utf8.allSatisfy(allowed.contains) else { return nil }

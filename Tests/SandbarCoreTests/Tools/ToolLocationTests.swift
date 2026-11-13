@@ -24,6 +24,25 @@ struct ToolLocationTests {
         #expect(await ToolLocation.find("sandbar-unknown", shell: Self.sh, folders: [empty]) == nil)
     }
 
+    @Test func theLoginShellsSearchPathIsItsLastPathLine() async throws {
+        let shell = try FakeTool.script(named: "zsh", "echo Welcome\necho /opt/tools/bin:/usr/bin:/bin")
+        #expect(try await ToolLocation.searchPath(shell: shell) == "/opt/tools/bin:/usr/bin:/bin")
+    }
+
+    @Test func aShellThatFailsGivesNoSearchPath() async throws {
+        let shell = try FakeTool.script(named: "zsh", "echo /usr/bin\nexit 3")
+        await #expect(throws: ToolError.failed(status: 3, output: "")) {
+            try await ToolLocation.searchPath(shell: shell)
+        }
+    }
+
+    @Test func aShellThatPrintsNoPathGivesNoSearchPath() async throws {
+        let shell = try FakeTool.script(named: "zsh", "echo Welcome")
+        await #expect(throws: ToolError.notUnderstood("Welcome\n")) {
+            try await ToolLocation.searchPath(shell: shell)
+        }
+    }
+
     @Test func aNameWithOtherCharactersRunsNothing() async throws {
         let shell = try FakeTool.script(named: "zsh", "touch \"$(dirname \"$0\")/ran\"")
         let marker = shell.deletingLastPathComponent().appending(path: "ran")
