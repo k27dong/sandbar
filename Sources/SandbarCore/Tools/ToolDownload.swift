@@ -8,11 +8,22 @@ import Foundation
     import CryptoKit
 #endif
 
-package enum Tool: String, Codable, CaseIterable, Sendable { case claude, codex }
+package enum Tool: String, Codable, CaseIterable, Sendable {
+    case claude, codex
+
+    package var programName: String {
+        switch self {
+        case .claude: "Claude Code"
+        case .codex: "Codex"
+        }
+    }
+}
 
 package enum DownloadError: Error, Equatable {
     case checksum(expected: String, got: String)
     case noBuild(String)
+    case undated(URL)
+    case failed(String)
 }
 
 package struct ToolDownload: Sendable {
@@ -40,6 +51,7 @@ package struct ToolDownload: Sendable {
     private static let claudeReleases = URL(string: "https://downloads.claude.ai/claude-code-releases")!
     private static let codexRelease = URL(string: "https://api.github.com/repos/openai/codex/releases/latest")!
     private static let codexProgram = "codex-app-server"
+    private static let copyLifetime: TimeInterval = 14 * 86_400
 
     package init(
         folder: URL,
@@ -83,6 +95,13 @@ package struct ToolDownload: Sendable {
             .reversed()
             .map { place(tool, $0) }
             .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+
+    package func isOld(_ tool: Tool, at now: Date) throws -> Bool {
+        guard let program = try installed(tool) else { return false }
+        let attributes = try FileManager.default.attributesOfItem(atPath: program.path)
+        guard let installedAt = attributes[.modificationDate] as? Date else { throw DownloadError.undated(program) }
+        return now.timeIntervalSince(installedAt) >= Self.copyLifetime
     }
 
     package func install(_ tool: Tool, platform: Platform = .current) async throws -> URL {
@@ -187,7 +206,9 @@ package struct ToolDownload: Sendable {
         try FileManager.default.createDirectory(
             at: program.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.moveItem(at: file, to: program)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: program.path)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755, .modificationDate: Date.now],  // a copy ages from the fetch, not from its build
+            ofItemAtPath: program.path)
         let toolFolder = folder.appending(path: tool.rawValue)
         for entry in try FileManager.default.contentsOfDirectory(atPath: toolFolder.path) where entry != version {
             try FileManager.default.removeItem(at: toolFolder.appending(path: entry))

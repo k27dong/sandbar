@@ -12,4 +12,19 @@ package enum FakeTool {
         try written.close()
         return script
     }
+
+    package static func codexServer(answering answers: String) throws -> URL {
+        try script(
+            named: "codex-app-server",
+            """
+            while read -r line; do
+              id=$(printf '%s\\n' "$line" | sed -n 's/.*"id":\\([0-9]*\\).*/\\1/p')
+              case "$line" in
+                *'"method":"initialize"'*) echo "{\\"id\\":$id,\\"result\\":{\\"userAgent\\":\\"fake\\"}}" ;;
+                \(answers)
+              esac
+            done
+            """
+        )
+    }
 }

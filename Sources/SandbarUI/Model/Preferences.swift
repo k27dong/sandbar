@@ -15,6 +15,9 @@ import SandbarCore
         static let showsPace = "showsPace"
         static let chosenRepositories = "chosenRepositories"
         static let notificationsPaused = "notificationsPaused"
+        static let isSetUp = "isSetUp"
+        static let gitHubLogin = "gitHubLogin"
+        static let usesGhSignIn = "usesGhSignIn"
     }
 
     private static let notificationKeys: [(key: String, isOn: WritableKeyPath<NotificationSettings, Bool>)] = [
@@ -39,6 +42,9 @@ import SandbarCore
     package var notificationsPaused: Bool {
         didSet { defaults.set(notificationsPaused, forKey: Key.notificationsPaused) }
     }
+    package var isSetUp: Bool { didSet { defaults.set(isSetUp, forKey: Key.isSetUp) } }
+    package var gitHubLogin: String? { didSet { defaults.set(gitHubLogin, forKey: Key.gitHubLogin) } }
+    package var usesGhSignIn: Bool { didSet { defaults.set(usesGhSignIn, forKey: Key.usesGhSignIn) } }
 
     private let defaults: UserDefaults
 
@@ -56,5 +62,8 @@ import SandbarCore
         }
         self.notifications = notifications
         notificationsPaused = defaults.bool(forKey: Key.notificationsPaused)
+        isSetUp = defaults.bool(forKey: Key.isSetUp)
+        gitHubLogin = defaults.string(forKey: Key.gitHubLogin)
+        usesGhSignIn = defaults.bool(forKey: Key.usesGhSignIn)
     }
 }

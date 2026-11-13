@@ -61,6 +61,9 @@ struct SnapshotTests {
         (ToolError.notUnderstood("hello"), .codex, "Codex's answer was not understood."),
         (ToolError.missing, nil, "The read failed."),
         (CancellationError(), .claude, "The read failed."),
+        (DownloadError.failed("offline"), .claude, "Claude Code could not be fetched."),
+        (DownloadError.checksum(expected: "aa11", got: "bb22"), .codex, "Codex could not be fetched."),
+        (DownloadError.noBuild("darwin-arm64"), nil, "The read failed."),
     ]
 
     func github(_ exchange: GitHubExchange) -> GitHubClient {

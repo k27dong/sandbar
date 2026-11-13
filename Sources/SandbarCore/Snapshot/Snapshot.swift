@@ -113,12 +113,7 @@ package struct Snapshot: Codable, Equatable, Sendable {
     }
 
     package static func detail(of error: any Error, tool: Tool?) -> String {
-        let name: String? =
-            switch tool {
-            case .claude: "Claude Code"
-            case .codex: "Codex"
-            case nil: nil
-            }
+        let name = tool?.programName
         let sentence =
             switch error {
             case GitHubError.signedOut: "GitHub sign-in is missing or no longer valid."
@@ -140,6 +135,7 @@ package struct Snapshot: Codable, Equatable, Sendable {
                 } else {
                     "The read failed."
                 }
+            case is DownloadError: name.map { "\($0) could not be fetched." } ?? "The read failed."
             default: "The read failed."
             }
         return String(sentence.prefix(300))

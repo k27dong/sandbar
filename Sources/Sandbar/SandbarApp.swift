@@ -33,14 +33,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             use(AppModel(showing: URL(filePath: arguments[flag + 1])))
         } else {
-            Task {
-                let gh = await ToolLocation.find("gh")
-                let model = AppModel(
-                    github: gh.map { gh in GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }) })
-                use(model)
-                model.start()
-            }
+            let model = AppModel()
+            use(model)
+            model.start()
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let model, model.isSigningIn else { return .terminateNow }
+        Task {
+            await model.endSignIn()  // a tool's sign-in waits for a browser with no end, and nobody else would end it
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     private func togglePanel() {  // on its own: in the lazy item's closure Swift warns of an isolated conformance

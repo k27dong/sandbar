@@ -7,23 +7,8 @@ struct CodexSignInTests {
     static let signOutAnswers = ["{}", #"{"status":"done"}"#]
     static let address = "https://auth.openai.example/oauth/authorize?state=abc"
 
-    func server(answering answers: String) throws -> URL {
-        try FakeTool.script(
-            named: "codex-app-server",
-            """
-            while read -r line; do
-              id=$(printf '%s\\n' "$line" | sed -n 's/.*"id":\\([0-9]*\\).*/\\1/p')
-              case "$line" in
-                *'"method":"initialize"'*) echo "{\\"id\\":$id,\\"result\\":{\\"userAgent\\":\\"fake\\"}}" ;;
-                \(answers)
-              esac
-            done
-            """
-        )
-    }
-
     func signInServer(completing completion: String = ":") throws -> URL {
-        try server(
+        try FakeTool.codexServer(
             answering: """
                 *'"method":"account/login/start"'*'"type":"chatgpt"'*)
                   echo "{\\"id\\":$id,\\"result\\":{\\"type\\":\\"chatgpt\\",\\"loginId\\":\\"login-1\\",\\"authUrl\\":\\"\(Self.address)\\"}}"
@@ -36,7 +21,7 @@ struct CodexSignInTests {
     }
 
     @Test func noAccountIsSignedOut() async throws {
-        let tool = try server(
+        let tool = try FakeTool.codexServer(
             answering: """
                 *'"method":"account/read"'*'"refreshToken":false'*)
                   echo "{\\"id\\":$id,\\"result\\":{\\"account\\":null,\\"requiresOpenaiAuth\\":true}}" ;;
@@ -47,7 +32,7 @@ struct CodexSignInTests {
     }
 
     @Test func anAccountGivesItsWorkspaceAndPlan() async throws {
-        let tool = try server(
+        let tool = try FakeTool.codexServer(
             answering: """
                 *'"method":"account/read"'*'"refreshToken":false'*)
                   echo "{\\"id\\":$id,\\"result\\":{\\"account\\":{\\"type\\":\\"chatgpt\\",\\"planType\\":\\"team\\",\\"workspaceName\\":\\"Acme\\"},\\"requiresOpenaiAuth\\":true}}" ;;
@@ -100,7 +85,7 @@ struct CodexSignInTests {
     }
 
     @Test(arguments: signOutAnswers) func signingOutIsDoneWhateverTheAnswerHolds(answer: String) async throws {
-        let tool = try server(
+        let tool = try FakeTool.codexServer(
             answering: """
                 *'"method":"account/logout","params":null'*) printf '{"id":%s,"result":%s}\\n' "$id" '\(answer)' ;;
                 """
@@ -109,7 +94,7 @@ struct CodexSignInTests {
     }
 
     @Test func aRefusedSignOutFails() async throws {
-        let tool = try server(
+        let tool = try FakeTool.codexServer(
             answering: """
                 *'"method":"account/logout","params":null'*)
                   echo "{\\"id\\":$id,\\"error\\":{\\"code\\":-32600,\\"message\\":\\"not signed in\\"}}" ;;

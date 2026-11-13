@@ -29,6 +29,7 @@ struct ToolDownloadTests {
         (.claude, "1.2.3-../../x"), (.claude, "1.2.3/x"), (.codex, "1.2.3-../../x"), (.codex, "1.2.3/x"),
     ]
     static let wrongChecksumCases: [(tool: Tool, expected: String)] = [(.claude, "aa11"), (.codex, "cc33")]
+    static let ages: [(days: Double, isOld: Bool)] = [(13.99, false), (14, true), (30, true)]
 
     actor Downloads {
         var addresses: [URL] = []
@@ -67,8 +68,11 @@ struct ToolDownloadTests {
         )
     }
 
-    func codexArchive(triple: String) async throws -> URL {
+    func codexArchive(triple: String, built: Date? = nil) async throws -> URL {
         let program = try FakeTool.script(named: "codex-app-server-\(triple)", "exit 0")
+        if let built {
+            try FileManager.default.setAttributes([.modificationDate: built], ofItemAtPath: program.path)
+        }
         let archive = program.deletingLastPathComponent().appending(path: "codex.tar.gz")
         let packed = try await Command.run(
             URL(filePath: "/usr/bin/tar"),
@@ -140,6 +144,24 @@ struct ToolDownloadTests {
         let second = try await stub().install(.claude, platform: .macArm)
         #expect(first == second)
         #expect(await downloads.addresses.count == 1)
+    }
+
+    @Test(arguments: ages) func aCopyIsOldFromItsFourteenthDay(days: Double, isOld: Bool) async throws {
+        let program = try await stub().install(.claude, platform: .macArm)
+        let now = Date(timeIntervalSince1970: 1_794_506_400)
+        try FileManager.default.setAttributes([.modificationDate: now - days * 86_400], ofItemAtPath: program.path)
+        #expect(try stub().isOld(.claude, at: now) == isOld)
+    }
+
+    @Test func aCopyFetchedTodayIsNotOldWhateverDateTheMakerGaveItsProgram() async throws {
+        let archive = try await codexArchive(triple: "aarch64-apple-darwin", built: .now - 30 * 86_400)
+        _ = try await stub(checksum: "cc33", archive: archive).install(.codex, platform: .macArm)
+        #expect(try !stub().isOld(.codex, at: .now))
+        #expect(try stub().isOld(.codex, at: .now + 14 * 86_400))
+    }
+
+    @Test func aToolWithNoCopyIsNotOld() throws {
+        #expect(try !stub().isOld(.codex, at: .now))
     }
 
     @Test func codexTakesTheAssetForTheMachine() async throws {

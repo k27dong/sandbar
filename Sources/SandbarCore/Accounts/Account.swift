@@ -71,13 +71,15 @@ package struct Account: Codable, Hashable, Identifiable, Sendable {
         return URL(filePath: folder, directoryHint: .isDirectory)
     }
 
-    package func forget(tool program: URL, profiles: URL) async throws {
+    package func forget(tool program: URL?, profiles: URL) async throws {
         guard let folder = try profileToForget(in: profiles) else { return }
-        var checked = self
-        checked.profile = folder  // what was checked is what is touched
-        switch tool {
-        case .claude: try await ClaudeSignIn.signOut(tool: program, environment: checked.environment)
-        case .codex: try await CodexSignIn.signOut(tool: program, environment: checked.environment)
+        if let program {  // with no tool anywhere there is nothing to sign out through, and the account must still go
+            var checked = self
+            checked.profile = folder  // what was checked is what is touched
+            switch tool {
+            case .claude: try await ClaudeSignIn.signOut(tool: program, environment: checked.environment)
+            case .codex: try await CodexSignIn.signOut(tool: program, environment: checked.environment)
+            }
         }
         try FileManager.default.removeItem(at: folder)
     }
