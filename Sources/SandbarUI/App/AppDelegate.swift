@@ -75,7 +75,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 })
             use(model)
-            model.start()
+            Task {
+                do {
+                    setenv("PATH", try await ToolLocation.searchPath(), 1)  // launchd's PATH lacks script interpreters
+                } catch {
+                    AppModel.log.error(
+                        "Tools run with the system's PATH: \(String(describing: error), privacy: .public)")
+                }
+                model.start()
+            }
         }
     }
 
