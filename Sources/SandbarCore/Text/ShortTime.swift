@@ -21,7 +21,7 @@ package enum ShortTime {
         return "\(minutes)m"
     }
 
-    /// A time written by `left` or `age`, in words for a screen reader: "19d9h" is "19 days 9 hours".
+    /// Reads only a time that `left` or `age` wrote.
     package static func spoken(_ time: String) -> String {
         let parts = time.matches(of: #/(\d+)(mo|[ydhm])/#)
         return

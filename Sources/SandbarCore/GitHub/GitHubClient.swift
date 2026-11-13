@@ -21,6 +21,18 @@ package struct PullRequestLists: Codable, Equatable, Sendable {
         self.reviewRequests = reviewRequests
         self.hiddenOrganizations = hiddenOrganizations
     }
+
+    package var repositories: [String] {
+        Set((mine + reviewRequests).map(\.repository)).sorted()
+    }
+
+    package func only(in repositories: [String]?) -> PullRequestLists {
+        guard let repositories else { return self }
+        return PullRequestLists(
+            mine: mine.filter { repositories.contains($0.repository) },
+            reviewRequests: reviewRequests.filter { repositories.contains($0.repository) },
+            hiddenOrganizations: hiddenOrganizations)
+    }
 }
 
 package struct GitHubClient: Sendable {

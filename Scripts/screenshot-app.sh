@@ -184,7 +184,7 @@ if [ "$opening" = close ]; then
     }
     exit 0
 fi
-if [ "$opening" = spoken ]; then  # on the limit stage: a usage row, a review request, one of his rows, the footer
+if [ "$opening" = spoken ]; then
     element list >"${output%.png}.txt"
     for sentence in "Work, Month, 3120 dollars, 52 percent, 19 days 9 hours left" \
         "Review requested by mchen, Stop the importer from retrying uploads that already failed twice, checks passed, number 6821, 2 days" \

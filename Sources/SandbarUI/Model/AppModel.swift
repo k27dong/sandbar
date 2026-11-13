@@ -24,23 +24,6 @@ import os
             folder: URL.applicationSupportDirectory.appending(path: "Sandbar", directoryHint: .isDirectory))
     }
 
-    package enum Selection: Hashable {
-        case pullRequest(PullRequest.ID)
-        case fold(Stack.ID)
-    }
-
-    enum Row {
-        case pullRequest(PullRequest)
-        case fold(Stack)
-
-        var selection: Selection {
-            switch self {
-            case .pullRequest(let pullRequest): .pullRequest(pullRequest.id)
-            case .fold(let stack): .fold(stack.id)
-            }
-        }
-    }
-
     private nonisolated struct Listening: ~Copyable {
         var notices: NotificationCenter
         var observers: [any NSObjectProtocol]
@@ -55,27 +38,20 @@ import os
     package internal(set) var snapshot: Snapshot
     package internal(set) var accounts: [Account]
     package internal(set) var accountsNote: String?
-    package private(set) var toolErrors: [Tool: any Error] = [:]
+    package internal(set) var toolErrors: [Tool: any Error] = [:]
     package internal(set) var gitHub: GitHubConnection
     package internal(set) var gitHubNote: String?
     package internal(set) var isWaitingForGitHub = false
-    package private(set) var existingSignIns: [Tool: ExistingSignIn] = [:]
+    package internal(set) var existingSignIns: [Tool: ExistingSignIn] = [:]
     package internal(set) var signInStep: [Tool: SignInStep] = [.claude: .idle, .codex: .idle]
     package let preferences: Preferences
     package var now: Date
     package var openStacks: Set<Stack.ID> = []
-    package var selection: Selection?
+    package var selection: PullRequestList.Selection?
     package var closePanel: () -> Void = {}
     package var openSettings: (SettingsWindow.Pane?) -> Void = { _ in }
-    package private(set) var launchesAtLogin: Bool
-    package private(set) var launchAtLoginNote: String?
-    package var notificationsPaused: Bool {
-        get { preferences.notificationsPaused }
-        set {
-            preferences.notificationsPaused = newValue
-            scheduleResets()
-        }
-    }
+    package internal(set) var launchesAtLogin: Bool
+    package internal(set) var launchAtLoginNote: String?
     package var isRecordingShortcut = false
     package var shortcutIsRefused = false
     package var hasNetwork = true {
@@ -95,25 +71,25 @@ import os
     var accountAction: (task: Task<Void, Never>, kind: AccountAction)?
     var claudeSignIn: Command.Running?
     var signInAddress: URL?
-    private(set) var tools: [Tool: URL] = [:]
-    private(set) var fetchedTools: Set<Tool> = []
-    private(set) var gh: URL?
-    private(set) var ghHasSignIn = false
-    private(set) var gitHubRefusedGh = false
+    var tools: [Tool: URL] = [:]
+    var fetchedTools: Set<Tool> = []
+    var gh: URL?
+    var ghHasSignIn = false
+    var gitHubRefusedGh = false
     private(set) var keepsUnreadableAccounts = false
     private(set) var isFixed = false
 
-    private let findTool: @Sendable (String) async -> URL?
-    @ObservationIgnored private var toolLookup: Task<Void, Never>?
-    @ObservationIgnored private var signInLookup: Task<Void, Never>?
+    let findTool: @Sendable (String) async -> URL?
+    @ObservationIgnored var toolLookup: Task<Void, Never>?
+    @ObservationIgnored var signInLookup: Task<Void, Never>?
     private var owed: Snapshot.Parts = []
     var pullRequestsReadOnce = false  // until the first good answer of this run, what is shown is old news
     private var accountsReadOnce: Set<Account.ID> = []
-    @ObservationIgnored private var handingOver: Task<Void, Never>?
+    @ObservationIgnored var handingOver: Task<Void, Never>?
     private var refreshesAsked = 0
     private var isReading = false
     private var copiesCheckedAt: Date?
-    private var renewing: Set<Tool> = []
+    var renewing: Set<Tool> = []
     private var renewedAfterFailure: Set<Tool> = []
     private var isAsleep = false
     private var isStarted = false
@@ -169,33 +145,8 @@ import os
     private static let shownSuite = "com.k27dong.sandbar.shown"
 
     package var list: PullRequestList {
-        let lists = snapshot.pullRequests.value
-        guard let chosen = preferences.chosenRepositories else {
-            return PullRequestList(mine: lists.mine, reviewRequests: lists.reviewRequests)
-        }
-        return PullRequestList(
-            mine: lists.mine.filter { chosen.contains($0.repository) },
-            reviewRequests: lists.reviewRequests.filter { chosen.contains($0.repository) })
-    }
-
-    package var choosesRepositories: Bool {
-        get { preferences.chosenRepositories != nil }
-        set { preferences.chosenRepositories = newValue ? preferences.chosenRepositories ?? listedRepositories : nil }
-    }
-
-    /// Every repository with a pull request in either list now, and every chosen one, by name.
-    package var repositoryChoices: [String] {
-        Set(listedRepositories + (preferences.chosenRepositories ?? [])).sorted()
-    }
-
-    package func choose(_ repository: String, _ isChosen: Bool) {
-        let others = (preferences.chosenRepositories ?? []).filter { $0 != repository }
-        preferences.chosenRepositories = (isChosen ? others + [repository] : others).sorted()
-    }
-
-    private var listedRepositories: [String] {
-        let lists = snapshot.pullRequests.value
-        return Set((lists.mine + lists.reviewRequests).map(\.repository)).sorted()
+        let lists = snapshot.pullRequests.value.only(in: preferences.chosenRepositories)
+        return PullRequestList(mine: lists.mine, reviewRequests: lists.reviewRequests)
     }
 
     package var isOffline: Bool {
@@ -204,11 +155,7 @@ import os
     }
 
     package var status: String {
-        if isRefreshing { return "Updating…" }
-        let offline = isOffline ? "Offline." : nil
-        guard let readAt = snapshot.pullRequests.readAt else { return offline ?? "" }
-        let age = now.timeIntervalSince(readAt) < 60 ? "just now" : "\(ShortTime.age(since: readAt, to: now)) ago"
-        return [offline, "Updated \(age)"].compactMap(\.self).joined(separator: " ")
+        snapshot.status(at: now, isRefreshing: isRefreshing, isOffline: isOffline)
     }
 
     package var ring: StatusItem.Ring {
@@ -337,24 +284,6 @@ import os
     /// True from the moment a refresh is asked for until it has ended, the wait for a tool lookup included.
     package var isRefreshing: Bool { refreshesAsked > 0 }
 
-    func scheduleResets() {
-        var current = snapshot
-        current.accounts.removeAll { entry in !accounts.contains { $0.id == entry.id } }  // still in the snapshot
-        let resets =
-            preferences.notificationsPaused
-            ? [] : Banner.resets(in: current, settings: preferences.notifications, now: now)
-        handOver { [banners] in await banners.schedule(resets) }
-    }
-
-    /// Runs after everything handed over before it, and nobody waits for it: a slow macOS never holds up a refresh.
-    private func handOver(_ work: @escaping @MainActor () async -> Void) {
-        let earlier = handingOver
-        handingOver = Task {
-            await earlier?.value
-            await work()
-        }
-    }
-
     private func refreshInBackground(_ parts: Snapshot.Parts) {
         refreshesAsked += 1
         Task {
@@ -371,60 +300,9 @@ import os
         refreshInBackground(.all)
     }
 
-    package func launchAtLogin(_ on: Bool) {
-        do {
-            try loginItem.set(on)
-            launchAtLoginNote = nil
-        } catch {
-            launchAtLoginNote = "macOS did not change it: \(error.localizedDescription)"
-            Self.log.error("Launch at login stayed as it was: \(String(describing: error), privacy: .public)")
-        }
-        launchesAtLogin = loginItem.isOn()
-    }
-
-    package func checkLaunchAtLogin() {
-        launchesAtLogin = loginItem.isOn()
-    }
-
     package func open(_ pullRequest: PullRequest) {
         openAddress(pullRequest.url)
         closePanel()
-    }
-
-    /// A stack's rows from top to bottom as the panel shows them, with its fold row when it is long enough to fold.
-    func rows(of stack: Stack) -> [Row] {
-        let pullRequests = stack.shown(isOpen: openStacks.contains(stack.id)).map(Row.pullRequest)
-        let fold = stack.shown(isOpen: false).count < stack.pullRequests.count ? [Row.fold(stack)] : []
-        return preferences.stackOrder == .topFirst ? fold + pullRequests.reversed() : pullRequests + fold
-    }
-
-    private var selectableRows: [Row] {
-        guard showsLists else { return [] }
-        let list = list
-        return list.reviewRequests.map(Row.pullRequest)
-            + list.mine.flatMap { entry in
-                switch entry {
-                case .single(let pullRequest): [Row.pullRequest(pullRequest)]
-                case .stack(let stack): rows(of: stack)
-                }
-            }
-    }
-
-    package func moveSelection(by step: Int) {
-        let rows = selectableRows.map(\.selection)
-        guard let selected = selection.flatMap(rows.firstIndex(of:)) else {
-            selection = step > 0 ? rows.first : rows.last
-            return
-        }
-        selection = rows[min(max(selected + step, 0), rows.count - 1)]
-    }
-
-    package func openSelection() {
-        switch selectableRows.first(where: { $0.selection == selection }) {
-        case .pullRequest(let pullRequest): open(pullRequest)
-        case .fold(let stack): openStacks.formSymmetricDifference([stack.id])
-        case nil: break
-        }
     }
 
     func saveSnapshot() {
@@ -435,133 +313,7 @@ import os
         }
     }
 
-    func findTools() {
-        let earlier = toolLookup
-        toolLookup = Task { [weak self, findTool, download] in
-            await earlier?.value  // an earlier lookup that ends late must not overwrite this one
-            async let gh = findTool("gh")
-            let found = await withTaskGroup(of: (Tool, URL?).self) { group in
-                for tool in Tool.allCases { group.addTask { (tool, await findTool(tool.rawValue)) } }
-                var found: [Tool: URL] = [:]
-                for await (tool, program) in group { found[tool] = program }
-                return found
-            }
-            var tools = found
-            var fetchedTools: Set<Tool> = []
-            var toolErrors: [Tool: any Error] = [:]
-            for tool in Tool.allCases where found[tool] == nil {
-                do {
-                    guard let copy = try download.installed(tool) else { continue }
-                    tools[tool] = copy
-                    fetchedTools.insert(tool)
-                } catch {
-                    toolErrors[tool] = error
-                }
-            }
-            let foundGh = await gh
-            self?.gh = foundGh
-            self?.tools = tools
-            self?.fetchedTools = fetchedTools
-            self?.toolErrors = toolErrors
-        }
-    }
-
-    func toolLookupsEnded() async {
-        var waited: Task<Void, Never>?
-        while waited != toolLookup {
-            waited = toolLookup
-            await waited?.value
-        }
-    }
-
-    nonisolated static func status(of account: Account, through program: URL) async throws -> AccountStatus {
-        switch account.tool {
-        case .claude: try await ClaudeSignIn.status(tool: program, environment: account.environment)
-        case .codex: try await CodexSignIn.status(tool: program, environment: account.environment)
-        }
-    }
-
-    func client(throughGh: Bool) -> GitHubClient? {
-        guard !throughGh else {
-            return gh.map { gh in
-                GitHubClient(token: { try await GitHubSignIn.ghToken(gh: gh) }) {
-                    @MainActor [weak self, send] request in
-                    let (data, response) = try await send(request)
-                    if response.statusCode == 401 { self?.gitHubRefusedGh = true }  // gh hands its token out unchecked
-                    return (data, response)
-                }
-            }
-        }
-        return GitHubClient(
-            token: { [keychain] in
-                guard let token = try keychain.read() else { throw GitHubError.signedOut }
-                return token
-            }, send: send)
-    }
-
     private var showsSignIn: Bool { !isSetUp || needsGitHubSignIn }
-
-    package func findSignIns() {
-        guard !isFixed else { return }
-        findTools()
-        let earlier = signInLookup
-        signInLookup = Task { [weak self] in
-            await earlier?.value
-            await self?.toolLookupsEnded()
-            guard
-                let known = self.map({ model in
-                    (gh: model.gh, own: model.tools.filter { !model.fetchedTools.contains($0.key) })
-                })
-            else { return }
-            var ghHasSignIn = false
-            if let gh = known.gh {
-                do {
-                    _ = try await GitHubSignIn.ghToken(gh: gh)
-                    ghHasSignIn = true
-                } catch {
-                    if error as? GitHubError != .signedOut {
-                        Self.log.error(
-                            "gh could not say whether it is signed in: \(String(describing: error), privacy: .public)")
-                    }
-                }
-            }
-            let signIns = await withTaskGroup(of: (Tool, ExistingSignIn).self) { group in
-                for tool in Tool.allCases {
-                    group.addTask {
-                        guard let program = known.own[tool] else { return (tool, .absent) }
-                        do {
-                            let status = try await Self.status(
-                                of: Account(tool: tool, name: "", plan: "", profile: nil), through: program)
-                            return (tool, status.isSignedIn ? .usable : .absent)
-                        } catch {
-                            return (tool, .unreadable(Snapshot.detail(of: error, tool: tool)))
-                        }
-                    }
-                }
-                var signIns: [Tool: ExistingSignIn] = [:]
-                for await (tool, signIn) in group { signIns[tool] = signIn }
-                return signIns
-            }
-            self?.ghHasSignIn = ghHasSignIn
-            self?.existingSignIns = signIns
-        }
-    }
-
-    private func renew(_ tool: Tool) {
-        guard renewing.insert(tool).inserted else { return }
-        Task { [weak self, download] in
-            do {
-                _ = try await download.install(tool)
-                self?.findTools()
-                self?.owe(.limits)
-            } catch {
-                self?.toolErrors[tool] = error
-                let cause = String(describing: error)
-                Self.log.error("\(tool.programName, privacy: .public) was not renewed: \(cause, privacy: .public)")
-            }
-            self?.renewing.remove(tool)
-        }
-    }
 
     private func refreshAtOnce() {
         if isStarted { now = .now }

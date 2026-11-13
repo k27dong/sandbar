@@ -33,6 +33,49 @@ package struct PullRequestList: Equatable, Sendable {
     }
 }
 
+extension PullRequestList {
+    package enum Selection: Hashable, Sendable {
+        case pullRequest(PullRequest.ID)
+        case fold(Stack.ID)
+    }
+
+    package enum Row: Sendable {
+        case pullRequest(PullRequest)
+        case fold(Stack)
+
+        package var selection: Selection {
+            switch self {
+            case .pullRequest(let pullRequest): .pullRequest(pullRequest.id)
+            case .fold(let stack): .fold(stack.id)
+            }
+        }
+    }
+
+    package static func rows(of stack: Stack, isOpen: Bool, topFirst: Bool) -> [Row] {
+        let pullRequests = stack.shown(isOpen: isOpen).map(Row.pullRequest)
+        let fold = stack.shown(isOpen: false).count < stack.pullRequests.count ? [Row.fold(stack)] : []
+        return topFirst ? fold + pullRequests.reversed() : pullRequests + fold
+    }
+
+    package func rows(openStacks: Set<Stack.ID>, topFirst: Bool) -> [Row] {
+        reviewRequests.map(Row.pullRequest)
+            + mine.flatMap { entry in
+                switch entry {
+                case .single(let pullRequest): [Row.pullRequest(pullRequest)]
+                case .stack(let stack): Self.rows(of: stack, isOpen: openStacks.contains(stack.id), topFirst: topFirst)
+                }
+            }
+    }
+
+    package static func selection(after selected: Selection?, movedBy step: Int, in rows: [Row]) -> Selection? {
+        let selections = rows.map(\.selection)
+        guard let index = selected.flatMap(selections.firstIndex(of:)) else {
+            return step > 0 ? selections.first : selections.last
+        }
+        return selections[min(max(index + step, 0), selections.count - 1)]
+    }
+}
+
 extension PullRequest {
     package var place: Int {
         let checksStep =

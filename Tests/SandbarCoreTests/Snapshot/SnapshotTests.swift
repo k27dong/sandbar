@@ -284,4 +284,18 @@ struct SnapshotTests {
         ]
         #expect(snapshot.fullestLimit == UsageLimit(window: .week, used: 0.91))
     }
+
+    static let statuses: [(readSecondsAgo: TimeInterval?, isRefreshing: Bool, isOffline: Bool, status: String)] = [
+        (59, false, false, "Updated just now"), (60, false, false, "Updated 1m ago"),
+        (840, false, false, "Updated 14m ago"), (840, false, true, "Offline. Updated 14m ago"),
+        (nil, false, false, ""), (nil, false, true, "Offline."), (840, true, true, "Updating…"),
+    ]
+
+    @Test(arguments: statuses) func theFooterSaysWhenThePullRequestsWereRead(
+        readSecondsAgo: TimeInterval?, isRefreshing: Bool, isOffline: Bool, status: String
+    ) {
+        var snapshot = Snapshot.empty
+        snapshot.pullRequests.readAt = readSecondsAgo.map { Sample.now - $0 }
+        #expect(snapshot.status(at: Sample.now, isRefreshing: isRefreshing, isOffline: isOffline) == status)
+    }
 }
