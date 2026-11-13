@@ -53,17 +53,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func use(_ model: AppModel) {
         model.closePanel = { [unowned self] in self.panel.close() }
         self.model = model
-        showCount()
+        showMenuBarItem()
     }
 
-    private func showCount() {
+    private func showMenuBarItem() {
         guard let model else { return }
         withObservationTracking {
             statusItem.show(
-                ring: .none, count: model.snapshot.pullRequests.readAt == nil ? nil : model.list.openCount,
+                ring: model.ring, count: model.snapshot.pullRequests.readAt == nil ? nil : model.list.openCount,
                 dimmed: model.isOffline)
         } onChange: {
-            Task { @MainActor in self.showCount() }
+            Task { @MainActor in self.showMenuBarItem() }
         }
     }
 }

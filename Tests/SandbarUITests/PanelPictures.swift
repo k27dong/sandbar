@@ -15,7 +15,7 @@ func stage(_ name: String) -> Snapshot {
 
 @Suite(.serialized) struct PanelPictures {
     nonisolated static let stages: [(name: String, points: Int)] = [
-        ("day", 299), ("states", 377), ("many", 656), ("offline", 299), ("awkward", 163),
+        ("day", 408), ("limit", 408), ("states", 486), ("many", 765), ("offline", 408), ("awkward", 272),
     ]
 
     private func model(_ snapshot: Snapshot, _ defaults: UserDefaults) -> AppModel {
@@ -92,7 +92,7 @@ func stage(_ name: String) -> Snapshot {
             #expect(whole.pixelsHigh > 1_400)
             #expect(limited.pixelsHigh == 1_400)
             let acrossTheFirstRow = { (picture: NSBitmapImageRep) in
-                (0..<848).map { picture.colorAt(x: $0, y: 38) }
+                (0..<848).map { picture.colorAt(x: $0, y: 256) }
             }
             #expect(acrossTheFirstRow(limited) == acrossTheFirstRow(whole))
         }

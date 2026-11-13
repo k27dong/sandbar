@@ -1,5 +1,6 @@
 import AppKit
 import SandbarCore
+import SandbarTestSupport
 import SandbarUI
 import Testing
 
@@ -63,6 +64,25 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
                 HTTPURLResponse(url: address, statusCode: 200, httpVersion: nil, headerFields: nil))
             return (Data(Self.answer.utf8), response)
         }
+    }
+
+    private actor HeldLookup {
+        private(set) var isAsked = false
+        private var held: CheckedContinuation<URL?, Never>?
+
+        func find() async -> URL? {
+            isAsked = true
+            return await withCheckedContinuation { held = $0 }
+        }
+
+        func answer(_ program: URL?) {
+            held?.resume(returning: program)
+            held = nil
+        }
+    }
+
+    private static func signedOutClaude() throws -> URL {
+        try FakeTool.script(named: "claude", #"[ "$*" = "auth status" ] && echo '{"loggedIn": false}'; exit 1"#)
     }
 
     private func withStub(
@@ -305,6 +325,115 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
         }
     }
 
+    @Test func accountsLoadFromTheFileAndReachEveryRefresh() async throws {
+        try await withStub { github, files, defaults in
+            let accounts = [
+                Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil),
+                Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil),
+            ]
+            try Account.save(accounts, to: files.accounts)
+            let model = AppModel(
+                preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files,
+                findTool: { _ in nil })
+            #expect(model.accounts.isEmpty)
+
+            await started(model, github)
+            #expect(model.accounts == accounts)
+            #expect(model.snapshot.accounts.map(\.account) == [accounts[1], accounts[0]])
+            #expect(model.snapshot.accounts.allSatisfy { $0.limits.askedAt == Self.now })
+
+            model.now = Self.now + 400
+            await model.refresh(.all)
+            #expect(model.snapshot.accounts.map(\.account) == [accounts[1], accounts[0]])
+            #expect(model.snapshot.accounts.allSatisfy { $0.limits.askedAt == Self.now + 400 })
+        }
+    }
+
+    @Test func aFoundToolIsTheOneTheRefreshRuns() async throws {
+        try await withStub { github, files, defaults in
+            try Account.save(
+                [Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil)], to: files.accounts)
+            let claude = try Self.signedOutClaude()
+            let model = AppModel(
+                preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files,
+                findTool: { name in name == "claude" ? claude : nil })
+            await started(model, github)
+            let limits = try #require(model.snapshot.accounts.first).limits
+            #expect(limits.trouble == .signedOut)
+            #expect(limits.detail == "Signed out.")
+        }
+    }
+
+    @Test func aRefreshAskedForDuringTheToolLookupWaitsForIt() async throws {
+        try await withStub { github, files, defaults in
+            try Account.save(
+                [Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil)], to: files.accounts)
+            let claude = try Self.signedOutClaude()
+            let lookup = HeldLookup()
+            let model = AppModel(
+                preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files,
+                findTool: { _ in await lookup.find() })
+            await github.holdNext()
+            model.start()
+            for _ in 0..<1_000 {
+                if await lookup.isAsked { break }
+                await Task.yield()
+            }
+            try #require(await lookup.isAsked)
+            model.panelOpened()
+            for _ in 0..<10 { await Task.yield() }
+
+            await lookup.answer(claude)
+            while await github.requests == 0 { await Task.yield() }
+            await github.release()
+            await settled(model)
+            let limits = try #require(model.snapshot.accounts.first).limits
+            #expect(limits.trouble == .signedOut)
+            #expect(limits.detail == "Signed out.")
+        }
+    }
+
+    @Test func aToolFoundNowhereReachesTheSnapshotAsMissing() async throws {
+        try await withStub { github, files, defaults in
+            try Account.save(
+                [Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil)], to: files.accounts)
+            let model = AppModel(
+                preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files,
+                findTool: { _ in nil })
+            await started(model, github)
+            let limits = try #require(model.snapshot.accounts.first).limits
+            #expect(limits.trouble == .toolMissing)
+            #expect(limits.detail == "Claude Code was not found.")
+            #expect(model.toolErrors.isEmpty)
+        }
+    }
+
+    @Test func aToolsFolderThatCannotBeReadKeepsItsErrorAndTheAccountShowsTheToolMissing() async throws {
+        try await withStub { github, files, defaults in
+            try Account.save(
+                [Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil)], to: files.accounts)
+            try FileManager.default.createDirectory(at: files.tools, withIntermediateDirectories: true)
+            try Data("not a folder".utf8).write(to: files.tools.appending(path: "claude"))
+            let model = AppModel(
+                preferences: Preferences(defaults: defaults), now: Self.now, github: github.client, files: files,
+                findTool: { _ in nil })
+            await started(model, github)
+            #expect(model.snapshot.accounts.first?.limits.trouble == .toolMissing)
+            #expect(model.toolErrors[.claude] != nil)
+        }
+    }
+
+    @Test func theRingShowsTheFullestLimit() async throws {
+        try await withDefaults { defaults in
+            let preferences = Preferences(defaults: defaults)
+            #expect(AppModel(preferences: preferences, now: Self.now).ring == .none)
+            #expect(
+                AppModel(snapshot: stage("day"), preferences: preferences, now: Self.now).ring == .used(0.52, .normal))
+            #expect(
+                AppModel(snapshot: stage("limit"), preferences: preferences, now: Self.now).ring == .used(0.91, .near))
+        }
+    }
+
     @Test(arguments: statuses) func theStatusSaysHowOldTheListIs(
         reading: (readSecondsAgo: TimeInterval?, trouble: Snapshot.Trouble?, status: String)
     ) async throws {
@@ -324,6 +453,8 @@ func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async 
         #expect(model.now == Self.now)
         #expect(model.status == "Offline. Updated 14m ago")
         #expect(model.list.openCount == 7)
+        #expect(model.accounts.map(\.name) == ["Work", "Personal", "Codex"])
+        #expect(model.ring == .used(0.52, .normal))
 
         await model.refresh(.all)
         model.panelOpened()

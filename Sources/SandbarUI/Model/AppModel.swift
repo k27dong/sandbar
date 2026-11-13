@@ -34,6 +34,9 @@ import os
     }
 
     package private(set) var snapshot: Snapshot
+    package private(set) var accounts: [Account]
+    package private(set) var accountsError: (any Error)?
+    package private(set) var toolErrors: [Tool: any Error] = [:]
     package let preferences: Preferences
     package var now: Date
     package private(set) var isRefreshing = false
@@ -47,6 +50,9 @@ import os
 
     private let github: GitHubClient?
     private let files: Files
+    private let findTool: @Sendable (String) async -> URL?
+    private var tools: [Tool: URL] = [:]
+    @ObservationIgnored private var toolLookup: Task<Void, Never>?
     private var isAsleep = false
     private var isStarted = false
     private var isFixed = false
@@ -54,13 +60,16 @@ import os
 
     package init(
         snapshot: Snapshot = .empty, preferences: Preferences = Preferences(), now: Date = .now,
-        github: GitHubClient? = nil, files: Files = .standard
+        github: GitHubClient? = nil, files: Files = .standard,
+        findTool: @escaping @Sendable (String) async -> URL? = { await ToolLocation.find($0) }
     ) {
         self.snapshot = snapshot
+        accounts = snapshot.accounts.map(\.account)
         self.preferences = preferences
         self.now = now
         self.github = github
         self.files = files
+        self.findTool = findTool
     }
 
     /// Shows a saved snapshot as it was when it was last asked for, and never refreshes it.
@@ -93,10 +102,22 @@ import os
         return [offline, "Updated \(age)"].compactMap(\.self).joined(separator: " ")
     }
 
+    package var ring: StatusItem.Ring {
+        guard !snapshot.accounts.isEmpty else { return .none }
+        guard let fullest = snapshot.fullestLimit else { return .used(0, .normal) }
+        return .used(fullest.used, fullest.level)
+    }
+
     package func start() {
         guard !isStarted else { return }
         isStarted = true
         snapshot = SavedSnapshot.read(from: files.snapshot)
+        do {
+            accounts = try Account.load(from: files.accounts)
+        } catch {
+            accounts = []
+            accountsError = error
+        }
         let notices = NSWorkspace.shared.notificationCenter
         let network = NWPathMonitor()
         network.pathUpdateHandler = { [weak self] path in
@@ -119,6 +140,7 @@ import os
                     }
                 },
             ], network: network)
+        findTools()
         Task { [weak self] in
             await self?.refresh(.all)
             while true {
@@ -136,10 +158,11 @@ import os
     }
 
     package func refresh(_ parts: Snapshot.Parts) async {
+        await toolLookup?.value
         guard !isFixed, hasNetwork, !isAsleep, !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
-        snapshot = await snapshot.refreshed(parts, github: github, accounts: [], tools: [:], now: now)
+        snapshot = await snapshot.refreshed(parts, github: github, accounts: accounts, tools: tools, now: now)
         do {
             try SavedSnapshot.write(snapshot, to: files.snapshot)
         } catch {
@@ -156,6 +179,29 @@ import os
     package func open(_ pullRequest: PullRequest) {
         NSWorkspace.shared.open(pullRequest.url)
         closePanel()
+    }
+
+    private func findTools() {
+        let accounts = accounts
+        let earlier = toolLookup
+        toolLookup = Task { [weak self, findTool, files] in
+            await earlier?.value  // an earlier lookup that ends late must not overwrite this one
+            var tools: [Tool: URL] = [:]
+            var toolErrors: [Tool: any Error] = [:]
+            for tool in Tool.allCases where accounts.contains(where: { $0.tool == tool }) {
+                if let program = await findTool(tool.rawValue) {
+                    tools[tool] = program
+                    continue
+                }
+                do {
+                    tools[tool] = try ToolDownload(folder: files.tools).installed(tool)
+                } catch {
+                    toolErrors[tool] = error
+                }
+            }
+            self?.tools = tools
+            self?.toolErrors = toolErrors
+        }
     }
 
     private func refreshAtOnce() {

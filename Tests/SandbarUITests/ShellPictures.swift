@@ -1,4 +1,5 @@
 import AppKit
+import SandbarCore
 import SandbarUI
 import SwiftUI
 import Testing
@@ -20,10 +21,22 @@ import Testing
         }
     }
 
+    @Test func anEmptyRingShowsOnlyItsTrack() throws {
+        let item = StatusItem {}
+        item.show(ring: .used(0, .normal), count: nil, dimmed: false)
+        let image = try #require(item.button?.image?.cgImage(forProposedRect: nil, context: nil, hints: nil))
+        let picture = NSBitmapImageRep(cgImage: image)
+        let side = Double(picture.pixelsWide)
+        let top = try #require(picture.colorAt(x: Int(side / 2), y: Int(side * 2.4 / 18)))
+        let bottom = try #require(picture.colorAt(x: Int(side / 2), y: Int(side * 15.6 / 18)))
+        #expect(abs(top.alphaComponent - bottom.alphaComponent) < 0.05, "\(top) at the top, \(bottom) at the bottom")
+    }
+
     @Test func menuBarItemDraws() throws {
         let states: [(ring: StatusItem.Ring, count: Int?, dimmed: Bool, colored: Bool)] = [
-            (.none, nil, false, false), (.used(0.52), 12, false, false), (.used(0.91), 12, false, true),
-            (.used(1), 12, false, true), (.used(0.52), 12, true, false),
+            (.none, nil, false, false), (.used(0.41, .normal), 12, false, false), (.used(0.91, .near), 12, false, true),
+            (.used(1, .full), 12, false, true), (.used(0.41, .normal), 12, true, false),
+            (.used(0, .normal), 12, false, false),
         ]
         let item = StatusItem {}
         for dark in [false, true] {
