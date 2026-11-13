@@ -1,12 +1,10 @@
 import AppKit
 import Observation
 import SandbarCore
-import SandbarUI
 import os
 
-@main
-enum SandbarApp {
-    static func main() {
+public enum SandbarApplication {
+    public static func run() {
         let delegate = AppDelegate()
         let application = NSApplication.shared
         application.delegate = delegate
