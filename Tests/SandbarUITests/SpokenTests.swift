@@ -43,17 +43,23 @@ struct SpokenTests {
     ]
 
     nonisolated static let work = Account(tool: .claude, name: "Work", plan: "Enterprise", profile: nil)
-    nonisolated static let usageRows: [(limit: UsageLimit?, sentence: String)] = [
+    nonisolated static let personal = Account(tool: .codex, name: "Personal", plan: "Plus", profile: nil)
+    nonisolated static let usageRows: [(limit: UsageLimit?, account: Account, trouble: String?, sentence: String)] = [
         (
             UsageLimit(window: .month, used: 0.62, dollars: 3120, resetsAt: AppModelTests.now + 18 * 86_400 + 21_600),
-            "Work, Month, 3120 dollars, 62 percent, 18 days 6 hours left"
+            work, nil, "Claude Code, Work, Month, 3120 dollars, 62 percent, 18 days 6 hours left"
         ),
         (
-            UsageLimit(window: .fiveHours, used: 0.12, resetsAt: AppModelTests.now + 11_520),
-            "Work, 5 hours, 12 percent, 3 hours 12 minutes left"
+            UsageLimit(window: .fiveHours, used: 0.12, resetsAt: AppModelTests.now + 11_520), personal, nil,
+            "Codex, Personal, 5 hours, 12 percent, 3 hours 12 minutes left"
         ),
-        (UsageLimit(window: .fiveHours, model: "Fable", used: 0.5), "Work, Fable, 50 percent"),
-        (nil, "Work"),
+        (UsageLimit(window: .fiveHours, model: "Fable", used: 0.5), work, nil, "Claude Code, Work, Fable, 50 percent"),
+        (nil, work, nil, "Claude Code, Work"),
+        (
+            UsageLimit(window: .week, used: 0.41, resetsAt: AppModelTests.now + 2 * 86_400 + 14_400), work,
+            "Signed out.", "Claude Code, Work, Week, 41 percent, 2 days 4 hours left, Signed out."
+        ),
+        (nil, personal, "Codex was not found.", "Codex, Personal, Codex was not found."),
     ]
 
     private nonisolated static func pullRequest(
@@ -98,8 +104,10 @@ struct SpokenTests {
         #expect(spoken(foldRowOf: stackOfFive, isOpen: true) == "Show fewer")
     }
 
-    @Test(arguments: usageRows) func aUsageRowReadsNameWindowAmountAndTimeLeft(limit: UsageLimit?, sentence: String) {
-        #expect(spoken(limit, of: Self.work, now: AppModelTests.now) == sentence)
+    @Test(arguments: usageRows) func aUsageRowReadsToolNameWindowAmountTimeLeftAndItsTrouble(
+        limit: UsageLimit?, account: Account, trouble: String?, sentence: String
+    ) {
+        #expect(spoken(limit, of: account, trouble: trouble, now: AppModelTests.now) == sentence)
     }
 
     @Test func theMenuBarItemSaysItsNameAndHowManyPullRequestsAreOpen() {

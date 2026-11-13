@@ -11,17 +11,21 @@ package struct UsageRows: View {
             ForEach(model.snapshot.accounts) { entry in
                 let reading = entry.limits
                 let limits: [UsageLimit?] = reading.value.isEmpty ? [nil] : reading.value
+                let trouble = reading.trouble == nil ? nil : reading.detail
                 ForEach(limits.indices, id: \.self) { index in
-                    UsageRow(
+                    let row = UsageRow(
                         account: index == 0 ? entry.account : nil, limit: limits[index],
                         isDimmed: reading.trouble != nil
                     )
                     .accessibilityElement(children: .ignore)
                     .accessibilityAddTraits(.isStaticText)
-                    .accessibilityLabel(spoken(limits[index], of: entry.account, now: model.now))
-                    .help(reading.trouble == nil ? "" : reading.detail ?? "")
-                    .onTapGesture {
-                        if reading.trouble != nil { model.openSettings(.accounts) }
+                    .accessibilityLabel(spoken(limits[index], of: entry.account, trouble: trouble, now: model.now))
+                    .help(trouble ?? "")
+                    if reading.trouble != nil {
+                        row.onTapGesture { model.openSettings(.accounts) }
+                            .accessibilityAction { model.openSettings(.accounts) }
+                    } else {
+                        row
                     }
                 }
             }
@@ -99,12 +103,14 @@ private struct UsageRow: View {
     }
 }
 
-package func spoken(_ limit: UsageLimit?, of account: Account, now: Date) -> String {
-    guard let limit else { return account.name }
-    return [
-        account.name, limit.model == nil && limit.window == .fiveHours ? "5 hours" : limit.label,
-        limit.dollars.map { "\($0) dollars" }, "\(Int((limit.used * 100).rounded())) percent",
-        limit.end(now: now).map { "\(ShortTime.spoken(ShortTime.left(until: $0, from: now))) left" },
-    ]
-    .compactMap(\.self).joined(separator: ", ")
+package func spoken(_ limit: UsageLimit?, of account: Account, trouble: String?, now: Date) -> String {
+    var parts: [String?] = [account.tool.programName, account.name]
+    if let limit {
+        parts += [
+            limit.model == nil && limit.window == .fiveHours ? "5 hours" : limit.label,
+            limit.dollars.map { "\($0) dollars" }, "\(Int((limit.used * 100).rounded())) percent",
+            limit.end(now: now).map { "\(ShortTime.spoken(ShortTime.left(until: $0, from: now))) left" },
+        ]
+    }
+    return (parts + [trouble]).compactMap(\.self).joined(separator: ", ")
 }
