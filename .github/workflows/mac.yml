@@ -35,8 +35,15 @@ jobs:
       - run: swift test -j 3
         env:
           SANDBAR_PICTURES: ${{ runner.temp }}/pictures
+      - run: |
+          for scrollBars in Always WhenScrolling; do  # a program reads this setting once, when it starts
+            defaults write -g AppleShowScrollBars -string "$scrollBars"
+            swift test --filter aListTallerThanTheLimit
+          done
+        env:
+          SANDBAR_PICTURES: ${{ runner.temp }}/pictures
       - run: Scripts/build-app.sh debug
-      - run: Scripts/screenshot-app.sh "$RUNNER_TEMP/pictures/app-empty.png"
+      - run: Scripts/screenshot-app.sh day "$RUNNER_TEMP/pictures/app-day.png"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

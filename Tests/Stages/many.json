@@ -1,0 +1,1196 @@
+{
+  "snapshot" : {
+    "accounts" : [
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000001",
+          "name" : "Work",
+          "plan" : "Enterprise",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "dollars" : 3120,
+              "resetsAt" : "2026-12-02T03:00:00Z",
+              "used" : 0.52,
+              "window" : {
+                "month" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000002",
+          "name" : "Personal",
+          "plan" : "Ultra",
+          "profile" : "file:\/\/\/Users\/kd\/Library\/Application%20Support\/Sandbar\/Profiles\/5A0DBA20-0000-4000-8000-000000000002\/",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-14T22:00:00Z",
+              "used" : 0.41,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000003",
+          "name" : "Codex",
+          "plan" : "Business",
+          "tool" : "codex"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-12T21:12:00Z",
+              "used" : 0.12,
+              "window" : {
+                "fiveHours" : {
+
+                }
+              }
+            },
+            {
+              "resetsAt" : "2026-11-18T15:00:00Z",
+              "used" : 0.04,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "pullRequests" : {
+      "askedAt" : "2026-11-12T18:00:00Z",
+      "readAt" : "2026-11-12T18:00:00Z",
+      "value" : {
+        "hiddenOrganizations" : [
+
+        ],
+        "mine" : [
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "add-one-survey-reader",
+            "id" : "PR_acme\/storefront#41301",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 41301,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 1
+            },
+            "title" : "Add one survey reader for the shopper profile and the declared answers",
+            "updatedAt" : "2026-11-12T17:40:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41301"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "add-one-survey-reader",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "read-the-onboarding-answers",
+            "id" : "PR_acme\/storefront#41302",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41302,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T15:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 2
+            },
+            "title" : "Read the onboarding answers for size advice through the survey reader",
+            "updatedAt" : "2026-11-12T15:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41302"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-the-onboarding-answers",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "read-the-checkout-profile",
+            "id" : "PR_acme\/storefront#41303",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41303,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T17:25:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 3
+            },
+            "title" : "Read the checkout profile status through the survey reader",
+            "updatedAt" : "2026-11-12T17:25:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41303"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-the-checkout-profile",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "read-the-gift-finder",
+            "id" : "PR_acme\/storefront#41304",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41304,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 4
+            },
+            "title" : "Read the gift finder answers through the survey reader",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41304"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-the-gift-finder",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "read-the-home-page",
+            "id" : "PR_acme\/storefront#41305",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41305,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 5
+            },
+            "title" : "Read the home page shelf profile through the survey reader",
+            "updatedAt" : "2026-11-12T17:25:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41305"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-the-home-page",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "decision" : "changesRequested",
+            "headBranch" : "read-the-concierge-survey",
+            "id" : "PR_acme\/storefront#41306",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41306,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "priya",
+                "submittedAt" : "2026-11-10T18:00:00Z",
+                "verdict" : "changesRequested"
+              }
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 6
+            },
+            "title" : "Read the concierge survey answers through the survey reader",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41306"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-the-concierge-survey",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "delete-the-legacy-post",
+            "id" : "PR_acme\/storefront#41307",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41307,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 7
+            },
+            "title" : "Delete the legacy post-purchase profile modal",
+            "updatedAt" : "2026-11-08T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41307"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "delete-the-legacy-post",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "collapse-the-survey-plumbing",
+            "id" : "PR_acme\/storefront#41308",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41308,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 8
+            },
+            "title" : "Collapse the survey plumbing now that one survey ships to everyone",
+            "updatedAt" : "2026-11-08T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41308"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "collapse-the-survey-plumbing",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "remove-the-survey-feature",
+            "id" : "PR_acme\/storefront#41309",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41309,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 14,
+              "position" : 9
+            },
+            "title" : "Remove the survey feature flag and its dead branches",
+            "updatedAt" : "2026-11-06T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41309"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "move-the-header-and",
+            "id" : "PR_acme\/storefront#41320",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41320,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T14:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 1
+            },
+            "title" : "Move the header and the side rail into one navigation package",
+            "updatedAt" : "2026-11-12T14:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41320"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "move-the-header-and",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "keep-the-old-header",
+            "id" : "PR_acme\/storefront#41321",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41321,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T14:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 2
+            },
+            "title" : "Keep the old header for wholesale accounts when the package is on",
+            "updatedAt" : "2026-11-12T14:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41321"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "keep-the-old-header",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "bring-the-old-headers",
+            "id" : "PR_acme\/storefront#41322",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41322,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 3
+            },
+            "title" : "Bring the old header's keyboard and screen reader fixes to the package",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41322"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "bring-the-old-headers",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "let-the-side-rail",
+            "id" : "PR_acme\/storefront#41323",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41323,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 4
+            },
+            "title" : "Let the side rail fold to icons under 1100 points",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41323"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "let-the-side-rail",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "remember-the-folded-rail",
+            "id" : "PR_acme\/storefront#41324",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41324,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 5
+            },
+            "title" : "Remember the folded rail per account",
+            "updatedAt" : "2026-11-12T17:10:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41324"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "remember-the-folded-rail",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "show-the-cart-drawer",
+            "id" : "PR_acme\/storefront#41325",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41325,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 6
+            },
+            "title" : "Show the cart drawer above the rail on small windows",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41325"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "show-the-cart-drawer",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "keep-the-rail-down",
+            "id" : "PR_acme\/storefront#41326",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41326,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 7
+            },
+            "title" : "Keep the rail down to 480 and let the shopper dismiss the drawer",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41326"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "keep-the-rail-down",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "make-the-two-navigation",
+            "id" : "PR_acme\/storefront#41327",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41327,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 8
+            },
+            "title" : "Make the two navigation owners the code owners of the package",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41327"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "make-the-two-navigation",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "headBranch" : "remove-the-old-header",
+            "id" : "PR_acme\/storefront#41328",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41328,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 15,
+              "position" : 9
+            },
+            "title" : "Remove the old header once the package is on for everyone",
+            "updatedAt" : "2026-11-07T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41328"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "read-saved-carts-through",
+            "id" : "PR_acme\/storefront#41250",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41250,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T16:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 1
+            },
+            "title" : "Read saved carts through one cart reader",
+            "updatedAt" : "2026-11-12T16:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41250"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-saved-carts-through",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "keep-the-saved-cart",
+            "id" : "PR_acme\/storefront#41251",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41251,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 2
+            },
+            "title" : "Keep the saved cart when a signed-in shopper switches devices",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41251"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "keep-the-saved-cart",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "show-the-saved-cart",
+            "id" : "PR_acme\/storefront#41252",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41252,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 3
+            },
+            "title" : "Show the saved cart count on the header button",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41252"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "show-the-saved-cart",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "offer-to-restore-a",
+            "id" : "PR_acme\/storefront#41253",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41253,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 4
+            },
+            "title" : "Offer to restore a cart that was emptied by a sign-out",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41253"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "offer-to-restore-a",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "tell-the-shopper-when",
+            "id" : "PR_acme\/storefront#41254",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41254,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 5
+            },
+            "title" : "Tell the shopper when a saved item went out of stock",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41254"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "point-an-unfinished-checkout",
+            "id" : "PR_acme\/storefront#41198",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41198,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Point an unfinished checkout survey at its missing answer",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41198"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-03T18:00:00Z",
+            "headBranch" : "remove-the-dashboards-time",
+            "id" : "PR_acme\/storefront#40790",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 40790,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Remove the dashboard's time override",
+            "updatedAt" : "2026-11-12T17:48:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/40790"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-12T11:00:00Z",
+            "headBranch" : "show-the-optional-hint",
+            "id" : "PR_acme\/storefront#41340",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41340,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Show the optional hint only on optional survey text questions",
+            "updatedAt" : "2026-11-12T16:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41340"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "hand-ideas-over-through",
+            "id" : "PR_acme\/api#6890",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6890,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T12:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 3,
+              "position" : 1
+            },
+            "title" : "Hand ideas over through a submit_ideas tool call",
+            "updatedAt" : "2026-11-12T12:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6890"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "hand-ideas-over-through",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "ask-the-writer-for",
+            "id" : "PR_acme\/api#6891",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6891,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 3,
+              "position" : 2
+            },
+            "title" : "Ask the writer for distinct, grounded, plain-spoken ideas",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6891"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "ask-the-writer-for",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "cap-idea-scripts-with",
+            "id" : "PR_acme\/api#6892",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6892,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 3,
+              "position" : 3
+            },
+            "title" : "Cap idea scripts with one character limit per request",
+            "updatedAt" : "2026-11-12T17:15:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6892"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "cap-idea-scripts-with",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "keep-new-ideas-away",
+            "id" : "PR_acme\/api#6893",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 6893,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 3,
+              "position" : 4
+            },
+            "title" : "Keep new ideas away from the titles the shopper already saw",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6893"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "give-generated-receipts-the",
+            "id" : "PR_acme\/api#6881",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6881,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T13:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Give generated receipts the shop's theme colors and fonts inside their frame",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6881"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-13T18:00:00Z",
+            "headBranch" : "try-a-smaller-image",
+            "id" : "PR_acme\/tools#104",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 104,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Try a smaller image cache for product pages",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/104"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "format-with-prettier-and",
+            "id" : "PR_acme\/tools#12",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 12,
+            "repository" : "acme\/tools",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T12:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Format with Prettier and clean up repo files",
+            "updatedAt" : "2026-11-12T12:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/12"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T15:00:00Z",
+            "headBranch" : "run-commands-through-one",
+            "id" : "PR_acme\/tools#9",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 9,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Run commands through one dispatcher",
+            "updatedAt" : "2026-11-12T17:35:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/9"
+          }
+        ],
+        "reviewRequests" : [
+          {
+            "author" : {
+              "login" : "mchen"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "stop-the-importer-from",
+            "id" : "PR_acme\/api#6821",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6821,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Stop the importer from retrying uploads that already failed twice",
+            "updatedAt" : "2026-11-12T15:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6821"
+          },
+          {
+            "author" : {
+              "login" : "priya"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T13:00:00Z",
+            "headBranch" : "let-the-scheduler-skip",
+            "id" : "PR_acme\/api#6816",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6816,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Let the scheduler skip weekends when the team calendar says so",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6816"
+          },
+          {
+            "author" : {
+              "login" : "sv"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "send-several-http-requests",
+            "id" : "PR_acme\/tools#97",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 97,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Send several HTTP requests at once in one thread",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/97"
+          },
+          {
+            "author" : {
+              "login" : "dana"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "headBranch" : "fix-the-weather-word",
+            "id" : "PR_acme\/storefront#41233",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41233,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Fix the weather word on the delivery estimate",
+            "updatedAt" : "2026-11-12T16:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41233"
+          }
+        ]
+      }
+    }
+  },
+  "version" : 1
+}

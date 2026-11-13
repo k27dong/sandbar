@@ -1,10 +1,13 @@
 #!/bin/sh
 set -eu
-output="$1"
+stage="$1"
+output="$2"
+root="$(cd "$(dirname "$0")/.." && pwd)"
 
+if [ "$stage" = - ]; then set --; else set -- --show "$root/Tests/Stages/$stage.json"; fi
 folder="$(mktemp -d)"
-cp -R "$(dirname "$0")/../build/Sandbar.app" "$folder"
-"$folder/Sandbar.app/Contents/MacOS/Sandbar" &
+cp -R "$root/build/Sandbar.app" "$folder"
+"$folder/Sandbar.app/Contents/MacOS/Sandbar" "$@" &
 program=$!
 trap 'kill "$program" 2>/dev/null || true; wait "$program" 2>/dev/null || true; rm -rf "$folder"' EXIT
 

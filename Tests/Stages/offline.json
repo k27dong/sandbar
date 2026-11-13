@@ -1,0 +1,348 @@
+{
+  "snapshot" : {
+    "accounts" : [
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000001",
+          "name" : "Work",
+          "plan" : "Enterprise",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "dollars" : 3120,
+              "resetsAt" : "2026-12-02T03:00:00Z",
+              "used" : 0.52,
+              "window" : {
+                "month" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000002",
+          "name" : "Personal",
+          "plan" : "Ultra",
+          "profile" : "file:\/\/\/Users\/kd\/Library\/Application%20Support\/Sandbar\/Profiles\/5A0DBA20-0000-4000-8000-000000000002\/",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-14T22:00:00Z",
+              "used" : 0.41,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000003",
+          "name" : "Codex",
+          "plan" : "Business",
+          "tool" : "codex"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-12T21:12:00Z",
+              "used" : 0.12,
+              "window" : {
+                "fiveHours" : {
+
+                }
+              }
+            },
+            {
+              "resetsAt" : "2026-11-18T15:00:00Z",
+              "used" : 0.04,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "pullRequests" : {
+      "askedAt" : "2026-11-12T18:00:00Z",
+      "detail" : "GitHub could not be reached.",
+      "readAt" : "2026-11-12T17:46:00Z",
+      "trouble" : "offline",
+      "value" : {
+        "hiddenOrganizations" : [
+
+        ],
+        "mine" : [
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "read-saved-carts-through",
+            "id" : "PR_acme\/storefront#41250",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41250,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T16:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 1
+            },
+            "title" : "Read saved carts through one cart reader",
+            "updatedAt" : "2026-11-12T16:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41250"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-saved-carts-through",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "keep-the-saved-cart",
+            "id" : "PR_acme\/storefront#41251",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41251,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 2
+            },
+            "title" : "Keep the saved cart when a signed-in shopper switches devices",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41251"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "keep-the-saved-cart",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "show-the-saved-cart",
+            "id" : "PR_acme\/storefront#41252",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41252,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 12,
+              "position" : 3
+            },
+            "title" : "Show the saved cart count on the header button",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41252"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "point-an-unfinished-checkout",
+            "id" : "PR_acme\/storefront#41198",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41198,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Point an unfinished checkout survey at its missing answer",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41198"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-03T18:00:00Z",
+            "headBranch" : "remove-the-dashboards-time",
+            "id" : "PR_acme\/storefront#40790",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 40790,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Remove the dashboard's time override",
+            "updatedAt" : "2026-11-12T17:48:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/40790"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "give-generated-receipts-the",
+            "id" : "PR_acme\/api#6881",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6881,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T13:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Give generated receipts the shop's theme colors and fonts inside their frame",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6881"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-13T18:00:00Z",
+            "headBranch" : "try-a-smaller-image",
+            "id" : "PR_acme\/tools#104",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 104,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Try a smaller image cache for product pages",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/104"
+          }
+        ],
+        "reviewRequests" : [
+          {
+            "author" : {
+              "login" : "mchen"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "stop-the-importer-from",
+            "id" : "PR_acme\/api#6821",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6821,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Stop the importer from retrying uploads that already failed twice",
+            "updatedAt" : "2026-11-12T15:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6821"
+          },
+          {
+            "author" : {
+              "login" : "priya"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T13:00:00Z",
+            "headBranch" : "let-the-scheduler-skip",
+            "id" : "PR_acme\/api#6816",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6816,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Let the scheduler skip weekends when the team calendar says so",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6816"
+          }
+        ]
+      }
+    }
+  },
+  "version" : 1
+}

@@ -1,0 +1,21 @@
+{
+  "snapshot" : {
+    "accounts" : [
+
+    ],
+    "pullRequests" : {
+      "value" : {
+        "hiddenOrganizations" : [
+
+        ],
+        "mine" : [
+
+        ],
+        "reviewRequests" : [
+
+        ]
+      }
+    }
+  },
+  "version" : 1
+}
