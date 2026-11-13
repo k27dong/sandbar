@@ -13,6 +13,7 @@ package struct PanelView: View {
     }
 
     package var body: some View {
+        @Bindable var model = model
         let tone = model.isSetUp && model.isOffline ? Color.warningText : .secondary
         let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy
         let showsTheCode = if case .code = model.gitHub { true } else { false }
@@ -63,6 +64,7 @@ package struct PanelView: View {
                     Menu {
                         Button("Settings…") { model.openSettings(nil) }
                             .keyboardShortcut(",")
+                        Toggle("Pause notifications", isOn: $model.notificationsPaused)
                         Button("Quit Sandbar") { NSApplication.shared.terminate(nil) }
                             .keyboardShortcut("q")
                     } label: {
