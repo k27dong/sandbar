@@ -29,11 +29,6 @@ package final class StatusItem {
         abs(item.maxY - screen.maxY) < 1 && item.minX >= screen.minX && item.maxX <= screen.maxX
     }
 
-    package var isHighlighted: Bool {
-        get { item.button?.isHighlighted ?? false }
-        set { item.button?.highlight(newValue) }
-    }
-
     package func show(ring: Ring, count: Int?, dimmed: Bool) {
         let tone: NSColor? =
             if case .used(_, let level) = ring, level != .normal { NSColor(Color.usage(level)) } else { nil }
@@ -84,6 +79,8 @@ package final class StatusItem {
         }
         picture.isTemplate = tone == nil  // the menu bar inks a template itself; a colored ring brings its own ink
         item.button?.image = picture
+        item.button?.setAccessibilityLabel(
+            count.map { "Sandbar, \($0) open pull request\($0 == 1 ? "" : "s")" } ?? "Sandbar")
     }
 
     @objc private func clicked() {

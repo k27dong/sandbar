@@ -98,6 +98,51 @@ func stage(_ name: String) -> Snapshot {
         }
     }
 
+    @Test func aSelectedRowIsDrawnLikeAHoveredOne() async throws {
+        let strongestInk = { (picture: NSBitmapImageRep, columns: Range<Int>, rows: Range<Int>) in
+            let paper = picture.colorAt(x: 6, y: 6)?.brightnessComponent ?? 0
+            let inks = columns.flatMap { x in
+                rows.compactMap { y in picture.colorAt(x: x, y: y).map { abs($0.brightnessComponent - paper) } }
+            }
+            return inks.max() ?? 0
+        }
+        try await withDefaults { defaults in
+            for dark in [false, true] {
+                let model = model(stage("many"), defaults)
+                let plain = try picture("many", of: model, dark: dark)
+                model.moveSelection(by: 1)
+                let onTheFirstRow = try picture("many-first-row-selected", of: model, dark: dark)
+                let row = try #require(onTheFirstRow.colorAt(x: 20, y: 256))
+                #expect(row.blueComponent - row.redComponent > 0.3, "the accent color fills the row: \(row)")
+                #expect(plain.colorAt(x: 20, y: 256) == plain.colorAt(x: 6, y: 6), "and no other")
+
+                for _ in 0..<5 { model.moveSelection(by: 1) }
+                let onTheFoldRow = try picture("many-fold-row-selected", of: model, dark: dark)
+                #expect(
+                    strongestInk(onTheFoldRow, 84..<116, 524..<548) > strongestInk(plain, 84..<116, 524..<548) + 0.2,
+                    "+7 turns from the secondary ink to the primary")
+                #expect(onTheFoldRow.colorAt(x: 20, y: 256) == plain.colorAt(x: 20, y: 256), "one row at a time")
+            }
+        }
+    }
+
+    @Test func theMarkCutOutOfADiscIsOneSolidColorOverAnyWallpaper() async throws {
+        try await withDefaults { defaults in
+            for dark in [false, true] {
+                let file = try Pictures.draw(
+                    PanelView().environment(model(stage("states"), defaults)).background(Color.red),
+                    named: "panel-states-on-red", dark: dark)
+                let picture = try #require(NSBitmapImageRep(data: try Data(contentsOf: file)))
+                let wallpaper = try #require(picture.colorAt(x: 6, y: 6))
+                #expect(wallpaper.redComponent - wallpaper.greenComponent > 0.5, "red shows around the rows")
+                for (disc, x, y) in [("approved", 48, 654), ("changes requested", 50, 802)] {
+                    let mark = try #require(picture.colorAt(x: x, y: y))
+                    #expect(abs(mark.redComponent - mark.greenComponent) < 0.1, "\(disc): \(mark)")
+                }
+            }
+        }
+    }
+
     @Test func noTitleChangesARowsHeight() async throws {
         try await withDefaults { defaults in
             let awkward = stage("awkward")

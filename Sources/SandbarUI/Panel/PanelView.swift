@@ -18,7 +18,7 @@ package struct PanelView: View {
         let barTakesRoom = NSScroller.preferredScrollerStyle == .legacy
         let showsTheCode = if case .code = model.gitHub { true } else { false }
         VStack(spacing: 0) {
-            if showsTheCode || !model.isSetUp {
+            if !model.showsLists {
                 SetupView()
             } else {
                 if !model.snapshot.accounts.isEmpty {
@@ -54,6 +54,8 @@ package struct PanelView: View {
                         .background(.quinary.opacity(refreshHovered ? 1 : 0), in: .rect(cornerRadius: 6))
                         .onHover { refreshHovered = $0 }
                         .help(model.snapshot.pullRequests.detail ?? "")
+                        .accessibilityLabel(Icon.refresh.spoken)
+                        .accessibilityValue(model.status)
                     } else {
                         Text(model.setupStatus)
                             .foregroundStyle(tone)
@@ -79,6 +81,7 @@ package struct PanelView: View {
                     .foregroundStyle(tone)
                     .background(.quinary.opacity(gearHovered ? 1 : 0), in: .rect(cornerRadius: 6))
                     .onHover { gearHovered = $0 }
+                    .accessibilityLabel(Icon.gear.spoken)
                 }
                 .font(.system(size: 11))
                 .padding(EdgeInsets(top: 6, leading: 10, bottom: 4, trailing: 10))

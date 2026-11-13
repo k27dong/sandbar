@@ -5,7 +5,7 @@ import Testing
 struct SavedStagesTests {
     static let stages: [(name: String, open: Int, stacks: Int, reviewRequests: Int)] = [
         ("first", 0, 0, 0), ("day", 7, 1, 2), ("states", 11, 2, 1), ("many", 34, 4, 4), ("limit", 7, 1, 2),
-        ("offline", 7, 1, 2), ("awkward", 3, 0, 1),
+        ("offline", 7, 1, 2), ("awkward", 3, 0, 1), ("sixty", 60, 3, 0),
     ]
 
     @Test(arguments: stages) func everyStageFileReads(

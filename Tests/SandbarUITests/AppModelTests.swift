@@ -5,7 +5,7 @@ import SandbarUI
 import Testing
 
 @Suite(.serialized) struct AppModelTests {
-    static let now = Date(timeIntervalSince1970: 1_794_506_400)  // 2026-11-12 18:00 UTC
+    nonisolated static let now = Date(timeIntervalSince1970: 1_794_506_400)  // 2026-11-12 18:00 UTC
 
     nonisolated static let statuses: [(readSecondsAgo: TimeInterval?, trouble: Snapshot.Trouble?, status: String)] = [
         (59, nil, "Updated just now"), (60, nil, "Updated 1m ago"), (840, nil, "Updated 14m ago"),

@@ -28,27 +28,32 @@ struct PullRequestRows: View {
             time: Self.width(of: shown.compactMap { $0.timeText(preferences.time, now: model.now) }))
         let isStack = list.mine.map { if case .stack = $0 { true } else { false } }
 
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(list.reviewRequests) { pullRequest in
-                PullRequestRow(pullRequest: pullRequest, isReviewRequest: true, columns: columns)
-            }
-            if !list.reviewRequests.isEmpty { ThinLine() }
-            if list.mine.isEmpty {
-                Text("No open pull requests")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
-                    .padding(.horizontal, 10)
-            }
-            ForEach(Array(list.mine.enumerated()), id: \.element.id) { index, entry in
-                let besideAStack = index > 0 && (isStack[index] || isStack[index - 1])
-                Group {
-                    switch entry {
-                    case .single(let pullRequest): PullRequestRow(pullRequest: pullRequest, columns: columns)
-                    case .stack(let stack): StackRows(stack: stack, columns: columns)
-                    }
+        ScrollViewReader { scroll in
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(list.reviewRequests) { pullRequest in
+                    PullRequestRow(pullRequest: pullRequest, isReviewRequest: true, columns: columns)
                 }
-                .padding(.top, besideAStack ? 3 : 0)
-                .padding(.bottom, isStack[index] && index == isStack.count - 1 ? 3 : 0)
+                if !list.reviewRequests.isEmpty { ThinLine() }
+                if list.mine.isEmpty {
+                    Text("No open pull requests")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+                        .padding(.horizontal, 10)
+                }
+                ForEach(Array(list.mine.enumerated()), id: \.element.id) { index, entry in
+                    let besideAStack = index > 0 && (isStack[index] || isStack[index - 1])
+                    Group {
+                        switch entry {
+                        case .single(let pullRequest): PullRequestRow(pullRequest: pullRequest, columns: columns)
+                        case .stack(let stack): StackRows(stack: stack, columns: columns)
+                        }
+                    }
+                    .padding(.top, besideAStack ? 3 : 0)
+                    .padding(.bottom, isStack[index] && index == isStack.count - 1 ? 3 : 0)
+                }
+            }
+            .onChange(of: model.selection) {
+                if let selection = model.selection { scroll.scrollTo(selection) }
             }
         }
     }
@@ -65,40 +70,42 @@ private struct StackRows: View {
     let columns: PullRequestRows.Columns
 
     var body: some View {
-        let topFirst = model.preferences.stackOrder == .topFirst
         let isOpen = model.openStacks.contains(stack.id)
-        let folds = stack.shown(isOpen: false).count < stack.pullRequests.count
-        let shown = stack.shown(isOpen: isOpen)
-        let rows: [PullRequest] = topFirst ? shown.reversed() : shown
-        let fold = Button {
-            model.openStacks.formSymmetricDifference([stack.id])
-        } label: {
-            HStack(spacing: 8) {
-                Icon.stack.image.frame(width: 18)
-                if isOpen {
-                    Icon.fewer.image
-                } else {
-                    Text("+\(stack.pullRequests.count - shown.count)")
-                        .font(Font(PullRequestRows.smallFont as CTFont))
+        let rows = model.rows(of: stack)
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.element.selection) { index, row in
+                switch row {
+                case .pullRequest(let pullRequest):
+                    PullRequestRow(
+                        pullRequest: pullRequest, joinedAbove: index > 0, joinedBelow: index < rows.count - 1,
+                        columns: columns)
+                case .fold:
+                    let isHighlighted = foldHovered || model.selection == row.selection
+                    Button {
+                        model.openStacks.formSymmetricDifference([stack.id])
+                    } label: {
+                        HStack(spacing: 8) {
+                            Icon.stack.image.frame(width: 18)
+                            if isOpen {
+                                Icon.fewer.image
+                            } else {
+                                Text("+\(stack.foldedAway)")
+                                    .font(Font(PullRequestRows.smallFont as CTFont))
+                            }
+                        }
+                        .foregroundStyle(isHighlighted ? Color.primary : .secondary)
+                        .padding(.horizontal, 10)
+                        .frame(height: 22)
+                        .overlay(alignment: index == 0 ? .bottomLeading : .topLeading) { StackLine().frame(height: 3) }
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { foldHovered = $0 }
+                    .accessibilityLabel(spoken(foldRowOf: stack, isOpen: isOpen))
+                    .accessibilityAddTraits(model.selection == row.selection ? .isSelected : [])
+                    .id(row.selection)
                 }
             }
-            .foregroundStyle(foldHovered ? Color.primary : .secondary)
-            .padding(.horizontal, 10)
-            .frame(height: 22)
-            .overlay(alignment: topFirst ? .bottomLeading : .topLeading) { StackLine().frame(height: 3) }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .onHover { foldHovered = $0 }
-
-        VStack(alignment: .leading, spacing: 0) {
-            if folds && topFirst { fold }
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, pullRequest in
-                PullRequestRow(
-                    pullRequest: pullRequest, joinedAbove: index > 0 || folds && topFirst,
-                    joinedBelow: index < rows.count - 1 || folds && !topFirst, columns: columns)
-            }
-            if folds && !topFirst { fold }
         }
     }
 }
@@ -115,21 +122,10 @@ private struct PullRequestRow: View {
     var body: some View {
         let preferences = model.preferences
         let twoLines = preferences.titles == .twoLines
-        let state: Icon =
-            switch pullRequest.state {
-            case .merging: .merging
-            case .draft: .draft
-            case .changesRequested: .changesRequested
-            case .approved: .approved
-            case .open: .open
-            }
-        let checks: Icon? =
-            switch pullRequest.checks.verdict {
-            case .passed: .checkPassed
-            case .running: .checkRunning
-            case .failed: .checkFailed
-            case nil: nil
-            }
+        let state = pullRequest.stateIcon
+        let selection = AppModel.Selection.pullRequest(pullRequest.id)
+        let isSelected = model.selection == selection
+        let isHighlighted = isHovered || isSelected
         Button {
             model.open(pullRequest)
         } label: {
@@ -143,25 +139,32 @@ private struct PullRequestRow: View {
                                 .font(.system(size: 7, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 16, height: 16)
-                                .background(isHovered ? Color.white.opacity(0.32) : .facePlaceholder)
+                                .background(isHighlighted ? Color.white.opacity(0.32) : .facePlaceholder)
                         }
                         .frame(width: 16, height: 16)
                         .clipShape(.circle)
                     } else {
-                        state.image.foregroundStyle(isHovered ? Color.white : state.tint ?? .primary)
+                        let isDisc = state == .approved || state == .changesRequested
+                        state.image
+                            .foregroundStyle(isHighlighted ? Color.white : state.tint ?? .primary)
+                            .background {  // or the wallpaper tints the mark cut out of a disc, through the glass
+                                if isDisc, !isHighlighted { Circle().fill(Color.knockOut).padding(2) }
+                            }
                     }
                 }
                 .frame(width: 18)
                 .padding(.top, twoLines ? 1 : 0)
 
-                Text(pullRequest.title.replacing(#/\s+/#, with: " "))
+                Text(pullRequest.oneLineTitle)
                     .lineLimit(twoLines ? 2 : 1)
                     .lineSpacing(twoLines ? 1 : 0)
                     .padding(.vertical, twoLines ? 0.5 : 0)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 ZStack {
-                    if let checks { checks.image.foregroundStyle(isHovered ? Color.white : checks.tint ?? .primary) }
+                    if let checks = pullRequest.checksIcon {
+                        checks.image.foregroundStyle(isHighlighted ? Color.white : checks.tint ?? .primary)
+                    }
                 }
                 .frame(width: 14)
                 .padding(.top, twoLines ? 3 : 0)
@@ -175,7 +178,7 @@ private struct PullRequestRow: View {
                 }
                 .font(Font(PullRequestRows.smallFont as CTFont))
                 .lineLimit(1)
-                .foregroundStyle(isHovered ? Color.white.opacity(0.85) : .secondary)
+                .foregroundStyle(isHighlighted ? Color.white.opacity(0.85) : .secondary)
                 .frame(height: twoLines ? 15 : nil)
                 .padding(.top, twoLines ? 2 : 0)
                 .offset(y: twoLines ? 0 : 1)
@@ -183,34 +186,89 @@ private struct PullRequestRow: View {
             .padding(.horizontal, 10)
             .padding(.vertical, twoLines ? 5 : 0)
             .frame(height: twoLines ? nil : 26)
-            .foregroundStyle(isHovered ? Color.white : .primary)
-            .background(isHovered ? Color.accentColor : .clear, in: .rect(cornerRadius: 8))
+            .foregroundStyle(isHighlighted ? Color.white : .primary)
+            .background(isHighlighted ? Color.accentColor : .clear, in: .rect(cornerRadius: 8))
             .overlay(alignment: .topLeading) {
-                if joinedAbove { StackLine(isHovered: isHovered).frame(height: 4) }
+                if joinedAbove { StackLine(isHighlighted: isHighlighted).frame(height: 4) }
             }
             .overlay(alignment: .topLeading) {
-                if joinedBelow { StackLine(isHovered: isHovered).padding(.top, 22) }
+                if joinedBelow { StackLine(isHighlighted: isHighlighted).padding(.top, 22) }
             }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .help(pullRequest.title)
+        .accessibilityLabel(
+            isReviewRequest
+                ? spoken(reviewRequest: pullRequest, now: model.now, time: preferences.time)
+                : spoken(pullRequest, now: model.now, time: preferences.time)
+        )
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .id(selection)
     }
 }
 
 private struct StackLine: View {
-    var isHovered = false
+    var isHighlighted = false
 
     var body: some View {
         Rectangle()
-            .fill(isHovered ? Color.white.opacity(0.6) : Color(nsColor: .tertiaryLabelColor))
+            .fill(isHighlighted ? Color.white.opacity(0.6) : Color(nsColor: .tertiaryLabelColor))
             .frame(width: 1.5)
             .offset(x: 18.25)
     }
 }
 
+package func spoken(_ pullRequest: PullRequest, now: Date, time: Preferences.TimeShown) -> String {
+    sentence(startingWith: pullRequest.stateIcon.spoken, pullRequest, now: now, time: time)
+}
+
+/// A review request says who asked, where its row shows that person's face in place of the state.
+package func spoken(reviewRequest: PullRequest, now: Date, time: Preferences.TimeShown) -> String {
+    sentence(startingWith: "Review requested by \(reviewRequest.author.login)", reviewRequest, now: now, time: time)
+}
+
+package func spoken(foldRowOf stack: Stack, isOpen: Bool) -> String {
+    isOpen ? Icon.fewer.spoken : "\(stack.foldedAway) more in this stack"
+}
+
+private func sentence(
+    startingWith opening: String, _ pullRequest: PullRequest, now: Date, time: Preferences.TimeShown
+) -> String {
+    [
+        opening, pullRequest.oneLineTitle, pullRequest.checksIcon?.spoken.lowercased(), "number \(pullRequest.number)",
+        pullRequest.timeText(time, now: now).map(ShortTime.spoken),
+    ]
+    .compactMap(\.self).joined(separator: ", ")
+}
+
+extension Stack {
+    fileprivate var foldedAway: Int { pullRequests.count - shown(isOpen: false).count }
+}
+
 extension PullRequest {
+    fileprivate var oneLineTitle: String { title.replacing(#/\s+/#, with: " ") }
+
+    fileprivate var stateIcon: Icon {
+        switch state {
+        case .merging: .merging
+        case .draft: .draft
+        case .changesRequested: .changesRequested
+        case .approved: .approved
+        case .open: .open
+        }
+    }
+
+    fileprivate var checksIcon: Icon? {
+        switch checks.verdict {
+        case .passed: .checkPassed
+        case .running: .checkRunning
+        case .failed: .checkFailed
+        case nil: nil
+        }
+    }
+
     fileprivate func numberText(withRepository: Bool) -> String {
         withRepository ? "\(repositoryName) #\(number)" : "#\(number)"
     }

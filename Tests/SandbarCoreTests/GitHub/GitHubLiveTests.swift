@@ -39,6 +39,32 @@ struct GitHubLiveTests {
         let found = try JSONDecoder().decode([Found].self, from: search.standardOutput)
         #expect(lists.mine.count == found.count)
         #expect(lists.mine.allSatisfy { (1...9).contains($0.place) })
-        #expect(PullRequestList(mine: lists.mine, reviewRequests: lists.reviewRequests).openCount == lists.mine.count)
+        let list = PullRequestList(mine: lists.mine, reviewRequests: lists.reviewRequests)
+        #expect(list.openCount == lists.mine.count)
+
+        let stacks = list.mine.compactMap { entry in
+            if case .stack(let stack) = entry { stack } else { nil }
+        }
+        for stack in stacks {
+            let members = stack.pullRequests
+            let folded = stack.shown(isOpen: false)
+            let foldedRows = folded.count + (members.count > 3 ? 1 : 0)
+            let positions = members.compactMap(\.stack?.position)
+            let reportedByGitHub = positions.count == members.count
+            print(
+                "stack \(reportedByGitHub ? "by GitHub" : "by branches"): \(members.count) members, bottom first",
+                members.map { "#\($0.number)" }.joined(separator: " "), "folded rows \(foldedRows)")
+            let bottomFirst =
+                reportedByGitHub
+                ? zip(positions, positions.dropFirst()).allSatisfy(<)
+                : zip(members, members.dropFirst()).allSatisfy { $0.headBranch == $1.baseBranch }
+            #expect(bottomFirst)
+            let foldsAsPromised = members.count <= 3 ? folded == members : folded == Array(members.prefix(2))
+            #expect(foldsAsPromised)  // a comparison inside #expect would print real titles when it fails
+        }
+        let stacked = stacks.flatMap(\.pullRequests).map(\.id)
+        let distinct = Set(stacked).count
+        #expect(distinct == stacked.count)
+        print("stacks \(stacks.count)")
     }
 }

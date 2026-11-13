@@ -1,0 +1,1732 @@
+{
+  "snapshot" : {
+    "accounts" : [
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000001",
+          "name" : "Work",
+          "plan" : "Enterprise",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "dollars" : 3120,
+              "resetsAt" : "2026-12-02T03:00:00Z",
+              "used" : 0.52,
+              "window" : {
+                "month" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000002",
+          "name" : "Personal",
+          "plan" : "Ultra",
+          "profile" : "file:\/\/\/Users\/kd\/Library\/Application%20Support\/Sandbar\/Profiles\/5A0DBA20-0000-4000-8000-000000000002\/",
+          "tool" : "claude"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-14T22:00:00Z",
+              "used" : 0.41,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "account" : {
+          "id" : "5A0DBA20-0000-4000-8000-000000000003",
+          "name" : "Codex",
+          "plan" : "Business",
+          "tool" : "codex"
+        },
+        "limits" : {
+          "askedAt" : "2026-11-12T18:00:00Z",
+          "readAt" : "2026-11-12T18:00:00Z",
+          "value" : [
+            {
+              "resetsAt" : "2026-11-12T21:12:00Z",
+              "used" : 0.12,
+              "window" : {
+                "fiveHours" : {
+
+                }
+              }
+            },
+            {
+              "resetsAt" : "2026-11-18T15:00:00Z",
+              "used" : 0.04,
+              "window" : {
+                "week" : {
+
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "pullRequests" : {
+      "askedAt" : "2026-11-12T18:00:00Z",
+      "readAt" : "2026-11-12T18:00:00Z",
+      "value" : {
+        "hiddenOrganizations" : [
+
+        ],
+        "mine" : [
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "read-delivery-estimates-through",
+            "id" : "PR_acme\/storefront#41400",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41400,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T15:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 21,
+              "position" : 1
+            },
+            "title" : "Read delivery estimates through one estimate reader",
+            "updatedAt" : "2026-11-12T15:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41400"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "read-delivery-estimates-through",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "show-the-delivery-estimate",
+            "id" : "PR_acme\/storefront#41401",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41401,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T17:20:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 21,
+              "position" : 2
+            },
+            "title" : "Show the delivery estimate on the cart page",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41401"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "show-the-delivery-estimate",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "show-the-delivery-estimate",
+            "id" : "PR_acme\/storefront#41402",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41402,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 21,
+              "position" : 3
+            },
+            "title" : "Show the delivery estimate on the order summary",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41402"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "show-the-delivery-estimate",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "remove-the-old-estimate",
+            "id" : "PR_acme\/storefront#41403",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41403,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 21,
+              "position" : 4
+            },
+            "title" : "Remove the old estimate banner",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41403"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "keep-the-search-box",
+            "id" : "PR_acme\/storefront#41410",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41410,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T15:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Keep the search box focused after a filter changes",
+            "updatedAt" : "2026-11-12T15:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41410"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "show-the-stock-count",
+            "id" : "PR_acme\/storefront#41411",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41411,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-11T18:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Show the stock count on the product card",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41411"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "sort-the-wishlist-by",
+            "id" : "PR_acme\/storefront#41412",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41412,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T17:40:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Sort the wishlist by the date an item was added",
+            "updatedAt" : "2026-11-12T17:40:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41412"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "let-a-shopper-rename",
+            "id" : "PR_acme\/storefront#41413",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41413,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Let a shopper rename a saved address",
+            "updatedAt" : "2026-11-12T12:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41413"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-12T10:00:00Z",
+            "headBranch" : "say-why-a-coupon",
+            "id" : "PR_acme\/storefront#41414",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41414,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Say why a coupon was refused",
+            "updatedAt" : "2026-11-12T16:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41414"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T14:00:00Z",
+            "headBranch" : "load-product-photos-at",
+            "id" : "PR_acme\/storefront#41415",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41415,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Load product photos at the size they are shown",
+            "updatedAt" : "2026-11-12T17:35:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41415"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "stop-the-cart-badge",
+            "id" : "PR_acme\/storefront#41416",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41416,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Stop the cart badge from flashing on every page load",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41416"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-31T18:00:00Z",
+            "headBranch" : "move-the-size-guide",
+            "id" : "PR_acme\/storefront#41417",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41417,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Move the size guide into a sheet",
+            "updatedAt" : "2026-11-08T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41417"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-05T18:00:00Z",
+            "decision" : "changesRequested",
+            "headBranch" : "keep-the-chosen-currency",
+            "id" : "PR_acme\/storefront#41418",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41418,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "priya",
+                "submittedAt" : "2026-11-11T18:00:00Z",
+                "verdict" : "changesRequested"
+              }
+            ],
+            "title" : "Keep the chosen currency across sign-in",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41418"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-23T18:00:00Z",
+            "headBranch" : "draw-the-rating-stars",
+            "id" : "PR_acme\/storefront#41419",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41419,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Draw the rating stars from one shape",
+            "updatedAt" : "2026-11-03T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41419"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-09-13T18:00:00Z",
+            "headBranch" : "try-a-two-column",
+            "id" : "PR_acme\/storefront#41420",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41420,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Try a two-column checkout on wide windows",
+            "updatedAt" : "2026-10-31T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41420"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-02T18:00:00Z",
+            "headBranch" : "show-the-return-window",
+            "id" : "PR_acme\/storefront#41421",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 41421,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Show the return window on each order",
+            "updatedAt" : "2026-11-12T17:52:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41421"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-03T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "group-the-order-history",
+            "id" : "PR_acme\/storefront#41422",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41422,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-10T18:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Group the order history by month",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41422"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-12T16:00:00Z",
+            "headBranch" : "fix-the-gift-note",
+            "id" : "PR_acme\/storefront#41423",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41423,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Fix the gift note field that cut text at 80 letters",
+            "updatedAt" : "2026-11-12T17:10:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41423"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "headBranch" : "remember-the-last-used",
+            "id" : "PR_acme\/storefront#41424",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41424,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Remember the last used payment method",
+            "updatedAt" : "2026-11-12T17:25:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41424"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "warn-before-leaving-a",
+            "id" : "PR_acme\/storefront#41425",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41425,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Warn before leaving a half-filled review",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41425"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "align-the-footer-links",
+            "id" : "PR_acme\/storefront#41426",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41426,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T13:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Align the footer links on small screens",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41426"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-10-28T18:00:00Z",
+            "headBranch" : "replace-the-spinner-on",
+            "id" : "PR_acme\/storefront#41427",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41427,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Replace the spinner on the pay button with progress text",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41427"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-01T18:00:00Z",
+            "decision" : "changesRequested",
+            "headBranch" : "read-the-store-hours",
+            "id" : "PR_acme\/storefront#41428",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 41428,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+              {
+                "author" : "priya",
+                "submittedAt" : "2026-11-10T18:00:00Z",
+                "verdict" : "changesRequested"
+              }
+            ],
+            "title" : "Read the store hours from the shop settings",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41428"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-13T18:00:00Z",
+            "headBranch" : "drop-the-unused-banner",
+            "id" : "PR_acme\/storefront#41429",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 41429,
+            "repository" : "acme\/storefront",
+            "reviews" : [
+
+            ],
+            "title" : "Drop the unused banner styles",
+            "updatedAt" : "2026-10-23T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/storefront\/pull\/41429"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "add-a-rate-table",
+            "id" : "PR_acme\/api#6900",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 6900,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 5,
+              "position" : 1
+            },
+            "title" : "Add a rate table for the shipping zones",
+            "updatedAt" : "2026-11-12T17:45:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6900"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "add-a-rate-table",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "price-a-parcel-from",
+            "id" : "PR_acme\/api#6901",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6901,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 5,
+              "position" : 2
+            },
+            "title" : "Price a parcel from the rate table",
+            "updatedAt" : "2026-11-12T17:30:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6901"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "price-a-parcel-from",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "round-shipping-prices-to",
+            "id" : "PR_acme\/api#6902",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6902,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 5,
+              "position" : 3
+            },
+            "title" : "Round shipping prices to the shop's currency",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6902"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "round-shipping-prices-to",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "delete-the-hard-coded",
+            "id" : "PR_acme\/api#6903",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 6903,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 5,
+              "position" : 4
+            },
+            "title" : "Delete the hard-coded shipping prices",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6903"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "return-the-tax-breakdown",
+            "id" : "PR_acme\/api#6910",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6910,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T11:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Return the tax breakdown with each order",
+            "updatedAt" : "2026-11-12T11:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6910"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "page-the-order-list",
+            "id" : "PR_acme\/api#6911",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6911,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-11T18:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Page the order list by cursor",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6911"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "headBranch" : "answer-404-for-a",
+            "id" : "PR_acme\/api#6912",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6912,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Answer 404 for a product that was removed",
+            "updatedAt" : "2026-11-12T14:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6912"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T13:00:00Z",
+            "headBranch" : "validate-postal-codes-per",
+            "id" : "PR_acme\/api#6913",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6913,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Validate postal codes per country",
+            "updatedAt" : "2026-11-12T17:30:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6913"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "log-the-request-id",
+            "id" : "PR_acme\/api#6914",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6914,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Log the request id on every error",
+            "updatedAt" : "2026-11-12T09:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6914"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-04T18:00:00Z",
+            "headBranch" : "retry-a-failed-payment",
+            "id" : "PR_acme\/api#6915",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6915,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Retry a failed payment webhook three times",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6915"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "send-the-receipt-mail",
+            "id" : "PR_acme\/api#6916",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6916,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T17:15:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Send the receipt mail from a queue",
+            "updatedAt" : "2026-11-12T17:15:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6916"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-10-30T18:00:00Z",
+            "decision" : "changesRequested",
+            "headBranch" : "limit-sign-in-attempts",
+            "id" : "PR_acme\/api#6917",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6917,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "priya",
+                "submittedAt" : "2026-11-10T18:00:00Z",
+                "verdict" : "changesRequested"
+              }
+            ],
+            "title" : "Limit sign-in attempts per address",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6917"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-05T18:00:00Z",
+            "headBranch" : "store-prices-as-whole",
+            "id" : "PR_acme\/api#6918",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 6918,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Store prices as whole cents",
+            "updatedAt" : "2026-11-12T17:50:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6918"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "headBranch" : "add-an-endpoint-for",
+            "id" : "PR_acme\/api#6919",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6919,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Add an endpoint for the low stock list",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6919"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-12T09:00:00Z",
+            "headBranch" : "give-every-export-a",
+            "id" : "PR_acme\/api#6920",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6920,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Give every export a file name with its date",
+            "updatedAt" : "2026-11-12T15:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6920"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "close-database-handles-when",
+            "id" : "PR_acme\/api#6921",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6921,
+            "repository" : "acme\/api",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T13:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Close database handles when a job is cancelled",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6921"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-27T18:00:00Z",
+            "headBranch" : "measure-how-long-each",
+            "id" : "PR_acme\/api#6922",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 6922,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Measure how long each report query takes",
+            "updatedAt" : "2026-11-06T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6922"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-08-14T18:00:00Z",
+            "headBranch" : "sketch-a-bulk-price",
+            "id" : "PR_acme\/api#6923",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 6923,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Sketch a bulk price update",
+            "updatedAt" : "2026-10-13T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6923"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "headBranch" : "move-the-image-resizer",
+            "id" : "PR_acme\/api#6924",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6924,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Move the image resizer to its own worker",
+            "updatedAt" : "2026-11-12T17:05:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6924"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-02T18:00:00Z",
+            "headBranch" : "reject-uploads-over-20",
+            "id" : "PR_acme\/api#6925",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 6925,
+            "repository" : "acme\/api",
+            "reviews" : [
+
+            ],
+            "title" : "Reject uploads over 20 megabytes with a clear message",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/api\/pull\/6925"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "run-the-link-checker",
+            "id" : "PR_acme\/tools#120",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 120,
+            "repository" : "acme\/tools",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T13:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "stack" : {
+              "number" : 2,
+              "position" : 1
+            },
+            "title" : "Run the link checker on every pull request",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/120"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "run-the-link-checker",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "report-broken-links-as",
+            "id" : "PR_acme\/tools#121",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 121,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 2,
+              "position" : 2
+            },
+            "title" : "Report broken links as one comment",
+            "updatedAt" : "2026-11-12T13:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/121"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "report-broken-links-as",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "decision" : "changesRequested",
+            "headBranch" : "skip-links-to-pages",
+            "id" : "PR_acme\/tools#122",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 122,
+            "repository" : "acme\/tools",
+            "reviews" : [
+              {
+                "author" : "priya",
+                "submittedAt" : "2026-11-11T18:00:00Z",
+                "verdict" : "changesRequested"
+              }
+            ],
+            "stack" : {
+              "number" : 2,
+              "position" : 3
+            },
+            "title" : "Skip links to pages behind a sign-in",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/122"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "skip-links-to-pages",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "cache-checked-links-for",
+            "id" : "PR_acme\/tools#123",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 123,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "stack" : {
+              "number" : 2,
+              "position" : 4
+            },
+            "title" : "Cache checked links for a day",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/123"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-09T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "print-the-failing-tests",
+            "id" : "PR_acme\/tools#130",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 130,
+            "repository" : "acme\/tools",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-12T10:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Print the failing test's name first",
+            "updatedAt" : "2026-11-12T10:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/130"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-07T18:00:00Z",
+            "decision" : "approved",
+            "headBranch" : "run-the-formatter-before",
+            "id" : "PR_acme\/tools#131",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 131,
+            "repository" : "acme\/tools",
+            "reviews" : [
+              {
+                "author" : "mchen",
+                "submittedAt" : "2026-11-10T18:00:00Z",
+                "verdict" : "approved"
+              }
+            ],
+            "title" : "Run the formatter before every commit",
+            "updatedAt" : "2026-11-10T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/131"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-11T18:00:00Z",
+            "headBranch" : "start-the-local-shop",
+            "id" : "PR_acme\/tools#132",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 132,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Start the local shop with one command",
+            "updatedAt" : "2026-11-12T12:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/132"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-12T15:00:00Z",
+            "headBranch" : "seed-the-local-database",
+            "id" : "PR_acme\/tools#133",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 133,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Seed the local database with sample orders",
+            "updatedAt" : "2026-11-12T17:45:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/133"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+                "e2e-chrome"
+              ],
+              "verdict" : "failed"
+            },
+            "createdAt" : "2026-11-08T18:00:00Z",
+            "headBranch" : "check-the-translations-for",
+            "id" : "PR_acme\/tools#134",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 134,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Check the translations for missing keys",
+            "updatedAt" : "2026-11-11T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/134"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-10-29T18:00:00Z",
+            "headBranch" : "build-the-docs-on",
+            "id" : "PR_acme\/tools#135",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 135,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Build the docs on every merge",
+            "updatedAt" : "2026-11-07T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/135"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-06T18:00:00Z",
+            "decision" : "changesRequested",
+            "headBranch" : "pin-the-node-version",
+            "id" : "PR_acme\/tools#136",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 136,
+            "repository" : "acme\/tools",
+            "reviews" : [
+              {
+                "author" : "priya",
+                "submittedAt" : "2026-11-09T18:00:00Z",
+                "verdict" : "changesRequested"
+              }
+            ],
+            "title" : "Pin the node version in one file",
+            "updatedAt" : "2026-11-09T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/136"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "delete-merged-branches-every",
+            "id" : "PR_acme\/tools#137",
+            "isDraft" : false,
+            "isInMergeQueue" : true,
+            "number" : 137,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Delete merged branches every night",
+            "updatedAt" : "2026-11-12T17:55:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/137"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-18T18:00:00Z",
+            "headBranch" : "draft-a-release-note",
+            "id" : "PR_acme\/tools#138",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 138,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Draft a release note from merged titles",
+            "updatedAt" : "2026-11-02T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/138"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ]
+            },
+            "createdAt" : "2026-10-13T18:00:00Z",
+            "headBranch" : "try-the-faster-test",
+            "id" : "PR_acme\/tools#139",
+            "isDraft" : true,
+            "isInMergeQueue" : false,
+            "number" : 139,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Try the faster test runner on the api",
+            "updatedAt" : "2026-10-28T18:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/139"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "passed"
+            },
+            "createdAt" : "2026-11-12T11:00:00Z",
+            "headBranch" : "show-bundle-size-changes",
+            "id" : "PR_acme\/tools#140",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 140,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Show bundle size changes in the pull request",
+            "updatedAt" : "2026-11-12T17:00:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/140"
+          },
+          {
+            "author" : {
+              "login" : "kd"
+            },
+            "baseBranch" : "main",
+            "checks" : {
+              "failed" : [
+
+              ],
+              "verdict" : "running"
+            },
+            "createdAt" : "2026-11-10T18:00:00Z",
+            "headBranch" : "collect-flaky-tests-into",
+            "id" : "PR_acme\/tools#141",
+            "isDraft" : false,
+            "isInMergeQueue" : false,
+            "number" : 141,
+            "repository" : "acme\/tools",
+            "reviews" : [
+
+            ],
+            "title" : "Collect flaky tests into a weekly list",
+            "updatedAt" : "2026-11-12T17:20:00Z",
+            "url" : "https:\/\/github.com\/acme\/tools\/pull\/141"
+          }
+        ],
+        "reviewRequests" : [
+
+        ]
+      }
+    }
+  },
+  "version" : 1
+}

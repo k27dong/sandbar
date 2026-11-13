@@ -20,4 +20,24 @@ package enum ShortTime {
         if minutes >= 60 { return "\(minutes / 60)h" }
         return "\(minutes)m"
     }
+
+    /// A time written by `left` or `age`, in words for a screen reader: "19d9h" is "19 days 9 hours".
+    package static func spoken(_ time: String) -> String {
+        let parts = time.matches(of: #/(\d+)(mo|[ydhm])/#)
+        return
+            parts
+            .filter { $0.1 != "0" || parts.count == 1 }
+            .map { part in
+                let unit =
+                    switch part.2 {
+                    case "y": "year"
+                    case "mo": "month"
+                    case "d": "day"
+                    case "h": "hour"
+                    default: "minute"
+                    }
+                return "\(part.1) \(unit)\(part.1 == "1" ? "" : "s")"
+            }
+            .joined(separator: " ")
+    }
 }

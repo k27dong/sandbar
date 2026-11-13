@@ -16,6 +16,9 @@ package struct UsageRows: View {
                         account: index == 0 ? entry.account : nil, limit: limits[index],
                         isDimmed: reading.trouble != nil
                     )
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityAddTraits(.isStaticText)
+                    .accessibilityLabel(spoken(limits[index], of: entry.account, now: model.now))
                     .help(reading.trouble == nil ? "" : reading.detail ?? "")
                     .onTapGesture {
                         if reading.trouble != nil { model.openSettings(.accounts) }
@@ -94,4 +97,14 @@ private struct UsageRow: View {
         .frame(height: 24)
         .contentShape(.rect)
     }
+}
+
+package func spoken(_ limit: UsageLimit?, of account: Account, now: Date) -> String {
+    guard let limit else { return account.name }
+    return [
+        account.name, limit.model == nil && limit.window == .fiveHours ? "5 hours" : limit.label,
+        limit.dollars.map { "\($0) dollars" }, "\(Int((limit.used * 100).rounded())) percent",
+        limit.end(now: now).map { "\(ShortTime.spoken(ShortTime.left(until: $0, from: now))) left" },
+    ]
+    .compactMap(\.self).joined(separator: ", ")
 }

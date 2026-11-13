@@ -197,7 +197,7 @@ private struct ConnectionRow<Trailing: View>: View {
             .foregroundStyle(isFailure ? Color.warningText : .secondary)
             .frame(height: 14.5)
         HStack(spacing: 10) {
-            icon.image.foregroundStyle(icon.tint ?? .primary)
+            icon.image.foregroundStyle(icon.tint ?? .primary).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 Text(name).frame(height: 17.5)
                 if let onDetailClick {
@@ -267,6 +267,8 @@ private struct ConnectedMark: View {
                 .stroke(.white, style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
             }
             .frame(width: 14, height: 14)
+            .accessibilityElement()
+            .accessibilityLabel("Connected")
     }
 }
 
