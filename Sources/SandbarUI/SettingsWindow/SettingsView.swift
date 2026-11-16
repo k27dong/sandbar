@@ -25,6 +25,7 @@ package final class SettingsWindow {
         if !window.isVisible { window.center() }
         NSApplication.shared.activate(ignoringOtherApps: true)  // a plain activate() waits for the active app to yield
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(nil)  // or the first account's name is being edited as soon as the window shows
     }
 }
 
@@ -78,6 +79,7 @@ private final class PaneTabs: NSTabViewController {
     override func tabView(_ tabView: NSTabView, didSelect item: NSTabViewItem?) {
         super.tabView(tabView, didSelect: item)
         preferences.settingsPane = SettingsWindow.Pane.allCases[selectedTabViewItemIndex]
+        view.window?.makeFirstResponder(nil)  // a pane's first text field would take the keyboard
         fit()
     }
 
