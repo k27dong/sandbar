@@ -26,7 +26,8 @@ package final class StatusItem {
     }
 
     package static func isInMenuBar(_ item: NSRect, of screen: NSRect) -> Bool {
-        abs(item.maxY - screen.maxY) < 1 && item.minX >= screen.minX && item.maxX <= screen.maxX
+        let reachesTheTop = item.maxY >= screen.maxY - 1  // under a taller menu bar its window ends above the screen
+        return reachesTheTop && item.minX >= screen.minX && item.maxX <= screen.maxX
     }
 
     package func show(ring: Ring, count: Int?, dimmed: Bool) {
