@@ -51,7 +51,7 @@ package struct SetupView: View {
             } else {
                 let next = Tool.allCases.first { tool in !model.accounts.contains { $0.tool == tool } }
                 Heading(title: "Connect your accounts", subtitle: "Sign-ins stay on this Mac.")
-                GitHubRow(namesHiddenOrganizations: true)
+                GitHubRow()
                 ForEach(Tool.allCases, id: \.self) { tool in
                     ToolRow(tool: tool, isNext: !model.needsGitHubSignIn && tool == next)
                 }
@@ -90,19 +90,17 @@ extension GitHubSignIn.Code {
 
 struct GitHubRow: View {
     @Environment(AppModel.self) private var model
-    var namesHiddenOrganizations = false
 
     var body: some View {
         let needsSignIn = model.needsGitHubSignIn
-        let connection: (login: String, throughGh: Bool)? =
-            if case .connected(let login, let throughGh) = model.gitHub { (login, throughGh) } else { nil }
+        let login: String? = if case .connected(let login, _) = model.gitHub, !needsSignIn { login } else { nil }
         let failure = model.gitHubFailure
-        let hidden = namesHiddenOrganizations && !needsSignIn ? model.hiddenOrganizationsNote : nil
-        let detail = failure ?? hidden ?? (needsSignIn ? nil : connection?.login) ?? "Your pull requests and reviews"
+        let hidden = needsSignIn ? nil : model.hiddenOrganizationsNote
+        let detail = failure ?? hidden ?? login ?? "Your pull requests and reviews"
         ConnectionRow(icon: .gitHub, name: "GitHub", detail: detail, isFailure: failure != nil) {
             if needsSignIn {
                 SignInButton(title: model.gitHubSignInTitle, isPrimary: true) { await model.signInToGitHub() }
-            } else if hidden != nil, model.canUseGh, connection?.throughGh == false {
+            } else if model.offersGhForHiddenOrganizations {
                 SignInButton(title: SignInWords.useGh, isPrimary: false) { await model.useGhSignIn() }
             } else {
                 ConnectedMark()

@@ -24,6 +24,13 @@ extension AppModel {
         return names.isEmpty ? nil : "Sandbar cannot see \(names.formatted(.list(type: .and)))."
     }
 
+    var codeSignInHidesAnOrganization: Bool {
+        guard case .connected(_, throughGh: false) = gitHub, !needsGitHubSignIn else { return false }
+        return hiddenOrganizationsNote != nil
+    }
+
+    package var offersGhForHiddenOrganizations: Bool { codeSignInHidesAnOrganization && canUseGh }
+
     var gitHubFailure: String? {
         let reading = snapshot.pullRequests
         let wasConnected = if case .connected = gitHub { true } else { false }

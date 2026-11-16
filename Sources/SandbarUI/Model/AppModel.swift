@@ -314,7 +314,7 @@ import os
         }
     }
 
-    private var showsSignIn: Bool { !isSetUp || needsGitHubSignIn }
+    private var showsSignIn: Bool { !isSetUp || needsGitHubSignIn || codeSignInHidesAnOrganization }
 
     private func refreshAtOnce() {
         if isStarted { now = .now }

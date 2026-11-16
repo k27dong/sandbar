@@ -25,7 +25,7 @@ package struct PanelView: View {
                     UsageRows()
                     ThinLine()
                 }
-                if model.needsGitHubSignIn {
+                if model.needsGitHubSignIn || model.offersGhForHiddenOrganizations {
                     GitHubRow()
                     ThinLine()
                 }

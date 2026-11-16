@@ -503,6 +503,27 @@ import Testing
         }
     }
 
+    @Test func ghIsOfferedForAHiddenOrganizationOnlyWhileTheCodeSignInIsInUse() async throws {
+        try await withHome { home in
+            var snapshot = Snapshot.empty
+            snapshot.pullRequests.value.hiddenOrganizations = ["acme"]
+            #expect(!home.model(snapshot: snapshot).offersGhForHiddenOrganizations, "gh is not there")
+
+            let gh = Fake.found(["gh": try Fake.gh()])
+            let model = home.model(snapshot: snapshot, findTool: gh)
+            model.panelOpened()
+            try await eventually("gh is looked for while the organization is hidden") { model.canUseGh }
+            try await home.settled()
+            #expect(model.offersGhForHiddenOrganizations)
+
+            Preferences(defaults: home.defaults).usesGhSignIn = true
+            let throughGh = home.model(snapshot: snapshot, findTool: gh)
+            throughGh.findSignIns()
+            try await eventually("gh is found signed in") { throughGh.canUseGh }
+            #expect(!throughGh.offersGhForHiddenOrganizations, "gh's sign-in is in use")
+        }
+    }
+
     @Test func gitHubNeedsASignInWhenItHasNoneOrItStoppedWorking() async throws {
         try await withHome { home in
             var snapshot = Snapshot.empty
