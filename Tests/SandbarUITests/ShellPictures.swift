@@ -22,7 +22,7 @@ import Testing
     }
 
     @Test func anEmptyRingShowsOnlyItsTrack() throws {
-        let item = StatusItem {}
+        let item = StatusItem(onClick: {}, onSession: { _ in })
         item.show(ring: .used(0, .normal), count: nil, dimmed: false)
         let image = try #require(item.button?.image?.cgImage(forProposedRect: nil, context: nil, hints: nil))
         let picture = NSBitmapImageRep(cgImage: image)
@@ -38,7 +38,7 @@ import Testing
             (.used(1, .full), 12, false, true), (.used(0.41, .normal), 12, true, false),
             (.used(0, .normal), 12, false, false),
         ]
-        let item = StatusItem {}
+        let item = StatusItem(onClick: {}, onSession: { _ in })
         for dark in [false, true] {
             let pictures = try states.map { state in
                 item.show(ring: state.ring, count: state.count, dimmed: state.dimmed)
