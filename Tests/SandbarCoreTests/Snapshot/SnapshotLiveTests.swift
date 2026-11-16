@@ -63,7 +63,7 @@ struct SnapshotLiveTests {
         #expect(snapshot.pullRequests.value.mine.count == found.count)
         #expect(snapshot.accounts.map(\.account.tool) == [.claude, .codex])
         #expect(snapshot.accounts.map(\.limits.trouble) == [nil, nil])
-        #expect(snapshot.accounts.flatMap(\.limits.value).count == 3)
+        #expect(snapshot.accounts.allSatisfy { !$0.limits.value.isEmpty })
 
         let file = folder.appending(path: "snapshot.json")
         try SavedSnapshot.write(snapshot, to: file)

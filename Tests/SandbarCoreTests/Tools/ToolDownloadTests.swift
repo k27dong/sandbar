@@ -209,7 +209,11 @@ struct ToolDownloadLiveTests {
             download: { from, to in
                 let (file, _) = try await URLSession.shared.download(from: from)
                 try FileManager.default.moveItem(at: file, to: to)
-                let summed = try await Command.run(URL(filePath: "/usr/bin/sha256sum"), [to.path])
+                #if os(macOS)
+                    let summed = try await Command.run(URL(filePath: "/usr/bin/shasum"), ["-a", "256", to.path])
+                #else
+                    let summed = try await Command.run(URL(filePath: "/usr/bin/sha256sum"), [to.path])
+                #endif
                 try #require(summed.status == 0)
                 sums.keep(String(String(decoding: summed.standardOutput, as: UTF8.self).prefix { $0 != " " }), for: to)
             },

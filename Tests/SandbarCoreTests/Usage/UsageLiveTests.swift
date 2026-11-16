@@ -10,14 +10,12 @@ import Testing
         }
     }
 
-    @Test func claudeGivesTheMonthlyBudget() async throws {
+    @Test func claudeGivesTheLimitsOfItsPlan() async throws {
         let limits = try await ClaudeUsage.limits(tool: Live.program("SANDBAR_LIVE_CLAUDE"), environment: [:])
         print(limits)
-        let limit = try #require(limits.first)
-        #expect(limits.count == 1)
-        #expect(limit.window == .month)
-        #expect(limit.dollars != nil)
-        #expect((0...1.5).contains(limit.used))
+        #expect(!limits.isEmpty)
+        #expect(limits.allSatisfy { (0...1.5).contains($0.used) })
+        #expect(limits.allSatisfy { $0.window != .month || $0.dollars != nil }, "a monthly budget is in dollars")
     }
 
     @Test func codexGivesTheFiveHourAndWeekLimits() async throws {

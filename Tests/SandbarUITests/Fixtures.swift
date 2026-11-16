@@ -4,11 +4,16 @@ import SandbarTestSupport
 import SandbarUI
 import Testing
 
+/// Lives in memory: a named suite leaves a file in ~/Library/Preferences, and macOS writes it back when deleted.
+nonisolated final class UnsavedDefaults: UserDefaults, @unchecked Sendable {
+    private var values: [String: Any] = [:]  // each test keeps its own to the main actor
+
+    override func object(forKey defaultName: String) -> Any? { values[defaultName] }
+    override func set(_ value: Any?, forKey defaultName: String) { values[defaultName] = value }
+}
+
 func withDefaults(_ body: @MainActor (UserDefaults) async throws -> Void) async throws {
-    let suite = "sandbar-tests-\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suite))
-    defer { defaults.removePersistentDomain(forName: suite) }
-    try await body(defaults)
+    try await body(UnsavedDefaults())
 }
 
 func afterSetup(_ defaults: UserDefaults) -> Preferences {
