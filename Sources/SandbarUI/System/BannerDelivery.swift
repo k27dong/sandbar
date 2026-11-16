@@ -6,25 +6,30 @@ package struct BannerDelivery: Sendable {
     package var deliver: @MainActor ([Banner]) async -> Void
     package var schedule: @MainActor ([Banner]) async -> Void  // replaces every reset banner handed over before
     package var askPermission: @MainActor () async -> Void
+    package var isAllowed: @MainActor () async -> Bool
 
     package init(
         deliver: @escaping @MainActor ([Banner]) async -> Void,
         schedule: @escaping @MainActor ([Banner]) async -> Void,
-        askPermission: @escaping @MainActor () async -> Void
+        askPermission: @escaping @MainActor () async -> Void,
+        isAllowed: @escaping @MainActor () async -> Bool
     ) {
         self.deliver = deliver
         self.schedule = schedule
         self.askPermission = askPermission
+        self.isAllowed = isAllowed
     }
 
-    package static let none = BannerDelivery(deliver: { _ in }, schedule: { _ in }, askPermission: {})
+    package static let none = BannerDelivery(
+        deliver: { _ in }, schedule: { _ in }, askPermission: {}, isAllowed: { true })
 
     /// Needs an app bundle: macOS raises when a program without one asks for its notification center.
     package static func system(onOpen: @escaping @MainActor (Banner.Opens) -> Void) -> BannerDelivery {
         let banners = SystemBanners(onOpen: onOpen)
         UNUserNotificationCenter.current().delegate = banners  // held weakly there; the closures below keep it
         return BannerDelivery(
-            deliver: banners.deliver, schedule: banners.schedule, askPermission: banners.askPermission)
+            deliver: banners.deliver, schedule: banners.schedule, askPermission: banners.askPermission,
+            isAllowed: banners.isAllowed)
     }
 }
 
@@ -64,7 +69,7 @@ private final class SystemBanners: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// Asks macOS each time, so a switch turned on later in System Settings counts at once.
-    private func isAllowed() async -> Bool {
+    func isAllowed() async -> Bool {
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         let isAllowed = status == .authorized || status == .provisional
         if !isAllowed, !saidRefused { AppModel.log.notice("Banners are not allowed for Sandbar; none is handed over") }
