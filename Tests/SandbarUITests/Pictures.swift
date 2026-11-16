@@ -3,8 +3,10 @@ import SwiftUI
 import Testing
 
 @MainActor enum Pictures {
-    static let folder = URL(
-        fileURLWithPath: ProcessInfo.processInfo.environment["SANDBAR_PICTURES"] ?? ".build/pictures")
+    static let folder =
+        ProcessInfo.processInfo.environment["SANDBAR_PICTURES"].map { URL(filePath: $0) }
+        ?? URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: ".build/pictures")  // Xcode starts tests outside the repository
     private static let scale: CGFloat = 2
 
     private final class Window: NSWindow {

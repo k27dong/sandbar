@@ -15,6 +15,7 @@
   ],
   "files": [
     { "kind": "folder", "path": "Sandbar", "target-membership": [ "Sandbar" ] },
+    { "path": "." },
     {
       "kind": "group",
       "name": "Products",
