@@ -112,31 +112,48 @@ private struct ToolAccounts: View {
 
 private struct NamedAccount: View {
     @Environment(AppModel.self) private var model
-    let account: Account
-    let icon: Icon
-    @State private var draft: String?
+    @Environment(\.controlActiveState) private var windowState
+    private let account: Account
+    private let icon: Icon
+    @State private var name: String
+    @State private var isPointedAt = false
     @FocusState private var isEditing: Bool
+
+    init(account: Account, icon: Icon) {
+        self.account = account
+        self.icon = icon
+        _name = State(initialValue: account.name)  // set in a later turn, the first drawing would have no name
+    }
 
     var body: some View {
         let reading = model.snapshot.accounts.first { $0.id == account.id }?.limits
+        let field = RoundedRectangle(cornerRadius: 5).inset(by: -3)
         AccountRow(icon: icon, detail: reading?.trouble == nil ? nil : reading?.detail) {
             HStack(spacing: 0) {
-                if let draft {
-                    Text(draft).hidden()  // sizes the field to the name, so that the plan stays right after it
+                if model.canRenameAccounts {
+                    Text(name.isEmpty ? " " : name)
+                        .hidden()  // sizes the field to the name, so that the plan stays right after it
                         .overlay {
-                            TextField("", text: Binding(get: { draft }, set: { self.draft = $0 }))
+                            TextField("", text: $name)
+                                .labelsHidden()  // a form gives a field a line for its label, which pushes it down
                                 .textFieldStyle(.plain)
                                 .focused($isEditing)
-                                .onSubmit { commit() }
-                                .onAppear { isEditing = true }
-                                .onExitCommand { self.draft = nil }
+                                .onSubmit { isEditing = false }
+                                .onExitCommand {
+                                    name = account.name
+                                    isEditing = false
+                                }
+                                .accessibilityLabel("Name")
                         }
-                        .padding(.trailing, 4)
+                        .background { field.fill(.quaternary).opacity(isPointedAt || isEditing ? 1 : 0) }
+                        .overlay {
+                            field.strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 3)
+                                .opacity(isEditing ? 1 : 0)
+                        }
+                        .onHover { isPointedAt = $0 }
+                        .padding(.trailing, isEditing ? 4 : 0)
                 } else {
                     Text(account.name)
-                        .onTapGesture {
-                            if model.canRenameAccounts { draft = account.name }
-                        }
                 }
                 if !account.plan.isEmpty { Text(" (\(account.plan))") }
             }
@@ -144,15 +161,15 @@ private struct NamedAccount: View {
             Button("Remove") { Task { await model.remove(account) } }
                 .disabled(model.accountsAreLocked)
         }
+        .onChange(of: account.name) { name = account.name }
         .onChange(of: isEditing) {
-            if !isEditing { commit() }
+            guard !isEditing else { return }
+            if name != account.name { model.rename(account, to: name) }
+            name = model.accounts.first { $0.id == account.id }?.name ?? account.name
         }
-    }
-
-    private func commit() {
-        guard let draft else { return }
-        model.rename(account, to: draft)
-        self.draft = nil
+        .onChange(of: windowState) {
+            if windowState == .inactive { isEditing = false }  // closing the window keeps what was typed
+        }
     }
 }
 
