@@ -41,6 +41,11 @@ struct GitHubClientTests {
         await #expect(throws: GitHubError.offline) { try await client.pullRequests() }
     }
 
+    @Test func aConnectionTheSystemBlocksIsOffline() async throws {
+        let client = GitHubClient(token: { "T" }, send: { _ in throw POSIXError(.EPERM) })
+        await #expect(throws: GitHubError.offline) { try await client.pullRequests() }
+    }
+
     @Test func badGatewayIsRejected() async throws {
         let exchange = GitHubExchange([(502, Self.badGateway)])
         await #expect(throws: GitHubError.rejected(status: 502, body: Self.badGateway)) {

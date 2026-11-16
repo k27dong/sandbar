@@ -131,8 +131,8 @@ package struct GitHubClient: Sendable {
         let response: HTTPURLResponse
         do {
             (data, response) = try await send(request)
-        } catch is URLError {
-            throw GitHubError.offline
+        } catch is URLError, is POSIXError {
+            throw GitHubError.offline  // a connection the system blocks fails with a POSIX error, not a URLError
         }
         switch response.statusCode {
         case 200: return data
