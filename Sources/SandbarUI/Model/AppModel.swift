@@ -52,6 +52,7 @@ import os
     package var openSettings: (SettingsWindow.Pane?) -> Void = { _ in }
     package internal(set) var launchesAtLogin: Bool
     package internal(set) var launchAtLoginNote: String?
+    package internal(set) var bannersAreOff = false
     package var isRecordingShortcut = false
     package var shortcutIsRefused = false
     package var hasNetwork = true {

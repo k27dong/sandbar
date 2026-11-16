@@ -49,6 +49,21 @@ import Testing
         }
     }
 
+    @Test func bannersSwitchedOffInMacOSAreSaidAboveTheSwitches() async throws {
+        try await withHome { home in
+            let macOS = HandedBanners()
+            macOS.isAllowed = false
+            let model = home.model(banners: macOS.delivery)
+            model.checkBanners()
+            try await eventually("macOS is asked") { model.bannersAreOff }
+            let plain = try height(try pane(.notifications, of: home.model()))
+            let off = try height(
+                try pictures(
+                    "notifications-off", of: SettingsView(pane: .notifications, version: "0.1.0").environment(model)))
+            #expect(off > plain + 30, "one more row in a group of its own: \(off), \(plain)")
+        }
+    }
+
     @Test func anAccountThatCannotBeReadSaysWhyUnderItsName() async throws {
         try await withHome { home in
             var troubled = Self.accounts

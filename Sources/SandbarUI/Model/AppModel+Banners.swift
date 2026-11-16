@@ -20,6 +20,15 @@ extension AppModel {
         handOver { [banners] in await banners.schedule(resets) }
     }
 
+    package func checkBanners() {
+        Task { bannersAreOff = await !banners.isAllowed() }
+    }
+
+    package func openNotificationSettings() {
+        let sandbar = Bundle.main.bundleIdentifier ?? ""
+        openAddress(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(sandbar)")!)
+    }
+
     /// Runs after everything handed over before it, and nobody waits for it: a slow macOS never holds up a refresh.
     func handOver(_ work: @escaping @MainActor () async -> Void) {
         let earlier = handingOver

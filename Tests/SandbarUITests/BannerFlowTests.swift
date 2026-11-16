@@ -8,6 +8,7 @@ import Testing
     var delivered: [Banner] = []
     var scheduled: [[Banner]] = []
     var permissionAsks = 0
+    var isAllowed = true
 
     func handedOver(by refreshes: Int) async throws {
         try await eventually("macOS is handed what \(refreshes) refreshes made") { scheduled.count >= refreshes }
@@ -16,7 +17,7 @@ import Testing
     var delivery: BannerDelivery {
         BannerDelivery(
             deliver: { [self] in delivered += $0 }, schedule: { [self] in scheduled.append($0) },
-            askPermission: { [self] in permissionAsks += 1 })
+            askPermission: { [self] in permissionAsks += 1 }, isAllowed: { [self] in isAllowed })
     }
 }
 
@@ -307,7 +308,8 @@ import Testing
             let github = GitHubStub()
             let macOS = Gate()
             let delivery = BannerDelivery(
-                deliver: { _ in await macOS.wait() }, schedule: { _ in await macOS.wait() }, askPermission: {})
+                deliver: { _ in await macOS.wait() }, schedule: { _ in await macOS.wait() }, askPermission: {},
+                isAllowed: { true })
             let model = home.model(send: github.send, banners: delivery)
             try await ends("the first refresh ends") { await model.refresh(.all) }
             try await ends("the next refresh ends") { await model.refresh(.all) }
@@ -348,6 +350,33 @@ import Testing
         item: NSRect, screen: NSRect, isInMenuBar: Bool
     ) {
         #expect(StatusItem.isInMenuBar(item, of: screen) == isInMenuBar)
+    }
+
+    @Test func bannersThatMacOSHasSwitchedOffAreKnownEachTimeItIsAsked() async throws {
+        try await withHome { home in
+            let macOS = HandedBanners()
+            macOS.isAllowed = false
+            let model = home.model(banners: macOS.delivery)
+            #expect(!model.bannersAreOff)
+
+            model.checkBanners()
+            try await eventually("macOS is asked") { model.bannersAreOff }
+
+            macOS.isAllowed = true
+            model.checkBanners()
+            try await eventually("macOS is asked again") { !model.bannersAreOff }
+        }
+    }
+
+    @Test func theWayToSwitchBannersOnOpensSandbarsPageInSystemSettings() async throws {
+        try await withHome { home in
+            let opened = Opened()
+            home.model(openAddress: { opened.addresses.append($0) }).openNotificationSettings()
+            let address = try #require(opened.addresses.first)
+            #expect(opened.addresses.count == 1)
+            #expect(address.scheme == "x-apple.systempreferences")
+            #expect(address.absoluteString.contains("com.apple.Notifications-Settings.extension?id="))
+        }
     }
 
     @Test func finishingSetupAsksForPermissionOnce() async throws {
