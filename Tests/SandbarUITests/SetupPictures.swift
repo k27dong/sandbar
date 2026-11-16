@@ -281,6 +281,29 @@ import Testing
         }
     }
 
+    @Test func afterSetupAHiddenOrganizationPutsTheGitHubRowAboveTheListWhenGhCanShowIt() async throws {
+        try await withHome { home in
+            let day = try #require(try pictures("day", of: home.model(snapshot: stage("day"))).first)
+            var snapshot = stage("day")
+            snapshot.pullRequests.value.hiddenOrganizations = ["acme"]
+            for picture in try pictures("hidden-after-setup", of: home.model(snapshot: snapshot)) {
+                #expect(picture.pixelsHigh == day.pixelsHigh, "without gh the row has nothing to offer")
+            }
+
+            let model = home.model(snapshot: snapshot, findTool: Fake.found(["gh": try Fake.gh()]))
+            model.panelOpened()
+            try await eventually("gh is found signed in") { model.canUseGh }
+            try await home.settled()
+            let rowTop: CGFloat = 6 + 100 + 9
+            for picture in try pictures("hidden-after-setup-gh", of: model) {
+                #expect(picture.pixelsHigh == day.pixelsHigh + (46 + 9) * 2)
+                #expect(
+                    try isGray(try buttonInk(picture, middle: rowTop + 23, fromItsEnd: 90), in: picture),
+                    "Use gh's sign-in, in gray")
+            }
+        }
+    }
+
     @Test func afterSetupConnectShowsTheSameCodeScreenAndBackReturnsToTheLists() async throws {
         var atFirstLaunch: [Data] = []
         try await withHome(fresh: true) { home in
