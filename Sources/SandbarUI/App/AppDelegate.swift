@@ -18,10 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel?
     private var shortcut: Shortcut?
     private var waitingForPlace: Task<Void, Never>?
-    private lazy var statusItem = StatusItem { [unowned self] in self.togglePanel() }
+    private lazy var statusItem = StatusItem(
+        onClick: { [unowned self] in self.togglePanel() },
+        onSession: { [unowned self] in self.sessionChanged(began: $0) })
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        panel.onClose = { [unowned self] in self.statusItem.button?.highlight(false) }
+        panel.onClose = { [unowned self] in
+            self.statusItem.button?.highlight(false)
+            self.statusItem.endSession()
+        }
+        panel.closesOnItemClick = { [unowned self] in self.statusItem.hasSession }  // macOS 27 sends nothing then
         statusItem.show(ring: .none, count: nil, dimmed: false)
 
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
@@ -101,6 +107,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.toggle(under: button, showing: model)
         statusItem.button?.highlight(panel.isOpen)
         if panel.isOpen { model.panelOpened() }
+    }
+
+    /// macOS 27 begins a session for a click on the item and ends it when a menu takes over.
+    private func sessionChanged(began: Bool) {
+        if began, panel.isOpen {
+            panel.close()  // opened by the shortcut or a banner: this click closes it
+        } else if began != panel.isOpen {
+            togglePanel()
+        }
     }
 
     /// For every way of opening the panel but a click on the item, which may come before the item has its place.

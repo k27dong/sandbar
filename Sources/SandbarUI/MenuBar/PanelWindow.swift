@@ -15,6 +15,7 @@ package final class PanelWindow {
 
     package var isOpen: Bool { panel != nil }
     package var onClose: (() -> Void)?
+    package var closesOnItemClick: () -> Bool = { false }
 
     package func toggle(under button: NSStatusBarButton, showing model: AppModel) {
         if isOpen {
@@ -78,8 +79,9 @@ package final class PanelWindow {
         self.panel = panel
         monitors = [
             NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                guard let self else { return }
                 let onItem = buttonWindow.frame.contains(NSEvent.mouseLocation)
-                if !onItem { self?.close() }  // on macOS 27 a click on the item lands here too, and its action closes
+                if !onItem || closesOnItemClick() { close() }  // a click on the item lands here too; its action closes
             },
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 PanelWindow.keyDown(event, in: panel, showing: model) { self?.close() }

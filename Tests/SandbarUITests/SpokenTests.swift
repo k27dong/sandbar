@@ -111,7 +111,7 @@ struct SpokenTests {
     }
 
     @Test func theMenuBarItemSaysItsNameAndHowManyPullRequestsAreOpen() {
-        let item = StatusItem {}
+        let item = StatusItem(onClick: {}, onSession: { _ in })
         item.show(ring: .none, count: nil, dimmed: false)
         #expect(item.button?.accessibilityLabel() == "Sandbar")
         item.show(ring: .used(0.41, .normal), count: 12, dimmed: false)

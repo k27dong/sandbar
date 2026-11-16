@@ -2,7 +2,7 @@ import AppKit
 import SandbarCore
 import SwiftUI
 
-package final class StatusItem {
+package final class StatusItem: NSObject {
     package enum Ring: Equatable {
         case none
         case used(Double, UsageLimit.Level)
@@ -10,11 +10,25 @@ package final class StatusItem {
 
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let onClick: () -> Void
+    private let onSession: (Bool) -> Void
 
-    package init(onClick: @escaping () -> Void) {
+    package init(onClick: @escaping () -> Void, onSession: @escaping (_ began: Bool) -> Void) {
         self.onClick = onClick
+        self.onSession = onSession
+        super.init()
         item.button?.target = self
-        item.button?.action = #selector(clicked)
+        item.button?.action = #selector(clicked)  // on macOS 27 only an accessibility press still comes this way
+        if #available(macOS 27.0, *) { item.expandedInterfaceDelegate = self }
+    }
+
+    /// True while macOS 27 shows the item as open: a click on the item then reaches no one but a click monitor.
+    package var hasSession: Bool {
+        guard #available(macOS 27.0, *) else { return false }
+        return item.expandedInterfaceSession != nil
+    }
+
+    package func endSession() {
+        if #available(macOS 27.0, *) { item.expandedInterfaceSession?.cancel() }
     }
 
     package var button: NSStatusBarButton? { item.button }
@@ -89,4 +103,15 @@ package final class StatusItem {
     }
 
     private nonisolated static var numberFont: NSFont { .monospacedDigitSystemFont(ofSize: 13, weight: .semibold) }
+}
+
+@available(macOS 27.0, *)
+extension StatusItem: NSStatusItemExpandedInterfaceDelegate {
+    package func statusItem(_ statusItem: NSStatusItem, didBegin session: NSStatusItemExpandedInterfaceSession) {
+        onSession(true)
+    }
+
+    package func statusItemDidEndExpandedInterfaceSession(_ statusItem: NSStatusItem, animated: Bool) {
+        onSession(false)
+    }
 }
